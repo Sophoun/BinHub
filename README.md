@@ -11,7 +11,7 @@ A secure, self-hosted Over-The-Air (OTA) distribution platform for mobile applic
   - **Restricted Access:** Assign specific applications to specific users so they only see what they need to test.
 - **User (QA) Dashboard:**
   - **Clean Interface:** A minimalist shadcn-inspired grid view of available applications.
-  - **One-Click Installation:** 
+  - **One-Click Installation:**
     - **Android:** Direct APK download.
     - **iOS:** Wireless "Install" using the `itms-services` protocol (auto-generated manifests).
 - **Secure & Lightweight:**
@@ -36,22 +36,70 @@ A secure, self-hosted Over-The-Air (OTA) distribution platform for mobile applic
 
 ### Installation
 
-1.  **Clone the repository:**
+1. **Clone the repository:**
+
     ```bash
     git clone <your-repo-url>
     cd open_ota
     ```
 
-2.  **Install dependencies:**
+2. **Install dependencies:**
+
     ```bash
     npm install
     ```
 
-3.  **Run the application:**
+3. **Run the application:**
+
     ```bash
     npm run dev
     ```
+
     The app will be available at `http://localhost:3000`.
+
+## Docker Deployment
+
+### Build and Publish
+
+You can build and publish the image to Docker Hub using the provided scripts:
+
+- **Linux/macOS/Git Bash:**
+
+  ```bash
+  chmod +x publish.sh
+  ./publish.sh
+  ```
+
+- **Windows (PowerShell):**
+
+  ```powershell
+  ./publish.ps1
+  ```
+
+### Run with Docker
+
+You can run the application using the standard `docker run` command. Ensure you map the volumes for the database and uploads directory so your data persists across container restarts:
+
+```bash
+docker run -d \
+  --name binhub \
+  -p 3000:3000 \
+  -v $(pwd)/ota.db:/app/ota.db \
+  -v $(pwd)/uploads:/app/uploads \
+  Sophoun/BinHub:latest
+```
+
+*(Note: On Windows PowerShell, use `${PWD}` instead of `$(pwd)`)*
+
+### Run with Docker Compose
+
+To run the application locally with persistence for the database and uploads:
+
+```bash
+docker-compose up -d
+```
+
+The application will be available at `http://localhost:3000`.
 
 ### Initial Setup
 
@@ -66,17 +114,17 @@ On the first run, accessing the login page will automatically initialize a defau
 
 ### For Administrators
 
-1.  **Login** using the admin credentials.
-2.  Navigate to the **Apps** tab and click "Add App" to register a new application.
-3.  Click "New Version" on an app card to upload an APK or IPA file.
-4.  Navigate to the **Users** tab to create accounts for your QA team.
-5.  Click "Assign Apps" next to a user to grant them access to specific applications.
+1. **Login** using the admin credentials.
+2. Navigate to the **Apps** tab and click "Add App" to register a new application.
+3. Click "New Version" on an app card to upload an APK or IPA file.
+4. Navigate to the **Users** tab to create accounts for your QA team.
+5. Click "Assign Apps" next to a user to grant them access to specific applications.
 
 ### For QA Users
 
-1.  **Login** with your assigned credentials.
-2.  View the list of applications assigned to you.
-3.  Click **Download** (Android) or **Install** (iOS) to get the latest build.
+1. **Login** with your assigned credentials.
+2. View the list of applications assigned to you.
+3. Click **Download** (Android) or **Install** (iOS) to get the latest build.
 
 ## License
 
