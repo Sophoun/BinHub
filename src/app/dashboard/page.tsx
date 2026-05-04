@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Download, LogOut, Smartphone, Package, Calendar, Clock } from 'lucide-react';
+import { Download, LogOut, Smartphone, Package, Calendar, Clock, History } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface AppWithVersion {
@@ -16,9 +16,18 @@ interface AppWithVersion {
   version_date?: string;
 }
 
+interface Version {
+  id: number;
+  version_number: string;
+  build_number?: string;
+  changelog?: string;
+  created_at: string;
+}
+
 export default function UserDashboard() {
   const [apps, setApps] = useState<AppWithVersion[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedAppHistory, setSelectedAppHistory] = useState<AppWithVersion | null>(null);
   const router = useRouter();
 
   const fetchApps = useCallback(async () => {
@@ -38,11 +47,9 @@ export default function UserDashboard() {
     router.push('/login');
   };
 
-  const handleInstall = (app: AppWithVersion) => {
-    if (!app.version_id) return;
-
-    if (app.platform === 'android') {
-      const url = `/api/download?versionId=${app.version_id}`;
+  const handleInstall = (platform: 'android' | 'ios', versionId: number) => {
+    if (platform === 'android') {
+      const url = `/api/download?versionId=${versionId}`;
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', '');
@@ -52,7 +59,7 @@ export default function UserDashboard() {
     } else {
       const protocol = window.location.protocol;
       const host = window.location.host;
-      const manifestUrl = `${protocol}//${host}/api/manifest?versionId=${app.version_id}`;
+      const manifestUrl = `${protocol}//${host}/api/manifest?versionId=${versionId}`;
       const itmsUrl = `itms-services://?action=download-manifest&url=${encodeURIComponent(manifestUrl)}`;
       window.location.href = itmsUrl;
     }
@@ -138,13 +145,22 @@ export default function UserDashboard() {
                         </p>
                       )}
 
-                      <button
-                        onClick={() => handleInstall(app)}
-                        className="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      >
-                        <Download className="mr-2 h-4 w-4" />
-                        {app.platform === 'ios' ? 'Install' : 'Download'}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleInstall(app.platform, app.version_id!)}
+                          className="flex-1 inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          {app.platform === 'ios' ? 'Install' : 'Download'}
+                        </button>
+                        <button
+                          onClick={() => setSelectedAppHistory(app)}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-md border bg-background text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                          title="Version History"
+                        >
+                          <History className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex h-20 items-center justify-center rounded-md bg-muted/50 text-xs text-muted-foreground italic">
@@ -158,11 +174,95 @@ export default function UserDashboard() {
         </div>
       </main>
 
+      {selectedAppHistory && (
+        <VersionHistoryModal 
+          app={selectedAppHistory} 
+          onClose={() => setSelectedAppHistory(null)} 
+          onInstall={(versionId) => handleInstall(selectedAppHistory.platform, versionId)}
+        />
+      )}
+
       <footer className="border-t py-6 bg-card">
         <div className="mx-auto max-w-7xl px-6 text-center text-sm text-muted-foreground font-medium">
           &copy; {new Date().getFullYear()} BinHub &bull; Build Distribution
         </div>
       </footer>
+    </div>
+  );
+}
+
+function VersionHistoryModal({ app, onClose, onInstall }: { app: AppWithVersion, onClose: () => void, onInstall: (versionId: number) => void }) {
+  const [versions, setVersions] = useState<Version[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchVersions = async () => {
+      const res = await fetch(`/api/apps/${app.id}/versions`);
+      if (res.ok) {
+        setVersions(await res.json());
+      }
+      setLoading(false);
+    };
+    fetchVersions();
+  }, [app.id]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+      <div className="relative w-full max-w-2xl rounded-lg border bg-card p-6 shadow-lg sm:p-8 animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+        <div className="flex flex-col space-y-1.5 mb-6">
+          <h2 className="text-xl font-semibold leading-none tracking-tight">{app.name} History</h2>
+          <p className="text-sm text-muted-foreground">Download previous versions of this application</p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto pr-2 -mr-2 space-y-4">
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-lg bg-muted animate-pulse" />)}
+            </div>
+          ) : versions.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">No versions found.</div>
+          ) : (
+            versions.map((v) => (
+              <div key={v.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-lg border bg-background hover:bg-muted/30 transition-colors">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm">v{v.version_number}</span>
+                    {v.build_number && (
+                      <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">
+                        Build {v.build_number}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <Calendar className="h-3 w-3" />
+                    {new Date(v.created_at).toLocaleString()}
+                  </div>
+                  {v.changelog && (
+                    <div className="text-xs text-muted-foreground mt-2 italic border-l-2 pl-2 line-clamp-2">
+                      {v.changelog}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => onInstall(v.id)}
+                  className="shrink-0 inline-flex h-8 items-center justify-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <Download className="mr-2 h-3.5 w-3.5" />
+                  {app.platform === 'ios' ? 'Install' : 'Download'}
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        <button 
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        >
+          <span className="sr-only">Close</span>
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
     </div>
   );
 }

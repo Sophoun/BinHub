@@ -1,9 +1,17 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Users, Smartphone, Upload, LogOut, LayoutDashboard, ChevronRight, Package, User as UserIcon } from 'lucide-react';
+import { Plus, Users, Smartphone, Upload, LogOut, LayoutDashboard, ChevronRight, Package, User as UserIcon, History, Trash2, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { App, User } from '@/src/lib/db';
+
+interface Version {
+  id: number;
+  version_number: string;
+  build_number?: string;
+  changelog?: string;
+  created_at: string;
+}
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('apps');
@@ -13,6 +21,7 @@ export default function AdminDashboard() {
   const [showAddUser, setShowAddUser] = useState(false);
   const [showUpload, setShowUpload] = useState<number | null>(null);
   const [showAssignments, setShowAssignments] = useState<number | null>(null);
+  const [manageVersionsApp, setManageVersionsApp] = useState<App | null>(null);
   
   const router = useRouter();
 
@@ -102,6 +111,7 @@ export default function AdminDashboard() {
               <AppList 
                 apps={apps} 
                 onUpload={(id: number) => setShowUpload(id)}
+                onManageVersions={(app: App) => setManageVersionsApp(app)}
               />
             ) : (
               <UserList 
@@ -118,11 +128,18 @@ export default function AdminDashboard() {
       {showAddUser && <AddUserModal onClose={() => setShowAddUser(false)} refresh={fetchUsers} />}
       {showUpload && <UploadModal appId={showUpload} onClose={() => setShowUpload(null)} refresh={fetchApps} />}
       {showAssignments && <AssignmentModal userId={showAssignments} apps={apps} onClose={() => setShowAssignments(null)} />}
+      {manageVersionsApp && (
+        <AdminVersionModal 
+          app={manageVersionsApp} 
+          onClose={() => setManageVersionsApp(null)} 
+          refreshApps={fetchApps} 
+        />
+      )}
     </div>
   );
 }
 
-function AppList({ apps, onUpload }: { apps: App[], onUpload: (id: number) => void }) {
+function AppList({ apps, onUpload, onManageVersions }: { apps: App[], onUpload: (id: number) => void, onManageVersions: (app: App) => void }) {
   return (
     <div className="rounded-md border bg-card">
       <div className="overflow-x-auto">
@@ -150,13 +167,22 @@ function AppList({ apps, onUpload }: { apps: App[], onUpload: (id: number) => vo
                 <td className="p-4 align-middle text-muted-foreground font-mono text-[12px]">{app.package_name}</td>
                 <td className="p-4 align-middle text-muted-foreground">{app.latest_version || 'N/A'}</td>
                 <td className="p-4 align-middle text-right">
-                  <button 
-                    onClick={() => onUpload(app.id)}
-                    className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 px-3"
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    New Version
-                  </button>
+                  <div className="flex items-center justify-end gap-2">
+                    <button 
+                      onClick={() => onManageVersions(app)}
+                      className="inline-flex items-center justify-center rounded-md border text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                      title="Manage Versions"
+                    >
+                      <History className="h-4 w-4" />
+                    </button>
+                    <button 
+                      onClick={() => onUpload(app.id)}
+                      className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 px-3"
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      New Version
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -457,5 +483,101 @@ function AssignmentModal({ userId, apps, onClose }: { userId: number, apps: App[
         <button onClick={handleSubmit} className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90">Save Changes</button>
       </div>
     </Modal>
+  );
+}
+
+function AdminVersionModal({ app, onClose, refreshApps }: { app: App, onClose: () => void, refreshApps: () => void }) {
+  const [versions, setVersions] = useState<Version[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchVersions = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch(`/api/apps/${app.id}/versions`);
+    if (res.ok) {
+      setVersions(await res.json());
+    }
+    setLoading(false);
+  }, [app.id]);
+
+  useEffect(() => {
+    fetchVersions();
+  }, [fetchVersions]);
+
+  const handleDelete = async (versionId: number) => {
+    if (!confirm('Are you sure you want to delete this version? This action cannot be undone.')) return;
+    
+    const res = await fetch(`/api/admin/versions/${versionId}`, {
+      method: 'DELETE',
+    });
+    
+    if (res.ok) {
+      await fetchVersions();
+      refreshApps(); // Refresh the main app list in case the latest version was deleted
+    } else {
+      alert('Failed to delete version.');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+      <div className="relative w-full max-w-3xl rounded-lg border bg-card p-6 shadow-lg sm:p-8 animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+        <div className="flex flex-col space-y-1.5 mb-6">
+          <h2 className="text-xl font-semibold leading-none tracking-tight">Manage Versions: {app.name}</h2>
+          <p className="text-sm text-muted-foreground">View and delete existing builds.</p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto pr-2 -mr-2 space-y-4">
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map(i => <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />)}
+            </div>
+          ) : versions.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">No versions found.</div>
+          ) : (
+            <div className="rounded-md border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50 transition-colors">
+                    <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Version</th>
+                    <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Build</th>
+                    <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Date</th>
+                    <th className="h-10 px-4 text-right align-middle font-medium text-muted-foreground">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="[&_tr:last-child]:border-0">
+                  {versions.map((v) => (
+                    <tr key={v.id} className="border-b transition-colors hover:bg-muted/50">
+                      <td className="p-3 px-4 align-middle font-medium">v{v.version_number}</td>
+                      <td className="p-3 px-4 align-middle text-muted-foreground">{v.build_number || '-'}</td>
+                      <td className="p-3 px-4 align-middle text-muted-foreground flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(v.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="p-3 px-4 align-middle text-right">
+                        <button
+                          onClick={() => handleDelete(v.id)}
+                          className="inline-flex h-8 items-center justify-center rounded-md text-destructive hover:bg-destructive/10 px-3 text-xs font-medium transition-colors"
+                        >
+                          <Trash2 className="mr-1 h-3.5 w-3.5" />
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <button 
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        >
+          <span className="sr-only">Close</span>
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+    </div>
   );
 }
