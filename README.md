@@ -1,36 +1,87 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BinHub
+
+A secure, self-hosted Over-The-Air (OTA) distribution platform for mobile applications (APK and iPA). Designed for QA teams to easily access and install builds directly on their devices.
+
+## Features
+
+- **Admin Dashboard:**
+  - **Application Management:** Add multiple Android and iOS applications.
+  - **Version Control:** Upload new APK or IPA builds with version numbers, build numbers, and changelogs.
+  - **User Management:** Create accounts for QA testers.
+  - **Restricted Access:** Assign specific applications to specific users so they only see what they need to test.
+- **User (QA) Dashboard:**
+  - **Clean Interface:** A minimalist shadcn-inspired grid view of available applications.
+  - **One-Click Installation:** 
+    - **Android:** Direct APK download.
+    - **iOS:** Wireless "Install" using the `itms-services` protocol (auto-generated manifests).
+- **Secure & Lightweight:**
+  - **Authentication:** JWT-based secure sessions.
+  - **Database:** Powered by SQLite for zero-config data storage.
+  - **Local Storage:** Files are stored locally on the server filesystem.
+
+## Tech Stack
+
+- **Framework:** Next.js 15+ (App Router)
+- **Language:** TypeScript
+- **Database:** SQLite (`better-sqlite3`)
+- **Styling:** Tailwind CSS 4 (shadcn/ui aesthetic)
+- **Icons:** Lucide React
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js 18.x or later
+- npm or yarn
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Installation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1.  **Clone the repository:**
+    ```bash
+    git clone <your-repo-url>
+    cd open_ota
+    ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
 
-## Learn More
+3.  **Run the application:**
+    ```bash
+    npm run dev
+    ```
+    The app will be available at `http://localhost:3000`.
 
-To learn more about Next.js, take a look at the following resources:
+### Initial Setup
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+On the first run, accessing the login page will automatically initialize a default administrator account:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Username:** `admin`
+- **Password:** `admin123`
 
-## Deploy on Vercel
+**Important:** It is highly recommended to change this password or create a new admin user and delete the default one after your first login.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Usage Guide
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### For Administrators
+
+1.  **Login** using the admin credentials.
+2.  Navigate to the **Apps** tab and click "Add App" to register a new application.
+3.  Click "New Version" on an app card to upload an APK or IPA file.
+4.  Navigate to the **Users** tab to create accounts for your QA team.
+5.  Click "Assign Apps" next to a user to grant them access to specific applications.
+
+### For QA Users
+
+1.  **Login** with your assigned credentials.
+2.  View the list of applications assigned to you.
+3.  Click **Download** (Android) or **Install** (iOS) to get the latest build.
+
+## License
+
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
+
+---
+
+Built with ❤️ for QA teams.
