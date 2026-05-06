@@ -3,7 +3,30 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Users, Smartphone, Upload, LogOut, LayoutDashboard, ChevronRight, Package, User as UserIcon, History, Trash2, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { App, User } from '@/src/lib/db';
+import type { App as BaseApp } from '@/src/lib/db';
+import { 
+  getAppsAction, 
+  getUsersAction, 
+  logoutAction, 
+  createAppAction, 
+  createUserAction, 
+  getAssignmentsAction, 
+  updateAssignmentsAction, 
+  getAppVersionsAction, 
+  deleteVersionAction 
+} from '@/src/lib/actions';
+
+// Omit password_hash from User type since it's not returned by the action
+interface User {
+  id: number;
+  username: string;
+  role: 'admin' | 'user';
+}
+
+// Extend App type to include the latest_version calculated field
+interface App extends BaseApp {
+  latest_version?: string;
+}
 
 interface Version {
   id: number;
@@ -26,13 +49,21 @@ export default function AdminDashboard() {
   const router = useRouter();
 
   const fetchApps = useCallback(async () => {
-    const res = await fetch('/api/admin/apps');
-    if (res.ok) setApps(await res.json());
+    try {
+      const data = await getAppsAction();
+      setApps(data);
+    } catch (e) {
+      console.error(e);
+    }
   }, []);
 
   const fetchUsers = useCallback(async () => {
-    const res = await fetch('/api/admin/users');
-    if (res.ok) setUsers(await res.json());
+    try {
+      const data = await getUsersAction();
+      setUsers(data);
+    } catch (e) {
+      console.error(e);
+    }
   }, []);
 
   useEffect(() => {
@@ -41,7 +72,7 @@ export default function AdminDashboard() {
   }, [fetchApps, fetchUsers]);
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    await logoutAction();
     router.push('/login');
   };
 
@@ -286,18 +317,16 @@ function Input({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
 function AddAppModal({ onClose, refresh }: { onClose: () => void, refresh: () => void }) {
   const [name, setName] = useState('');
   const [packageName, setPackageName] = useState('');
-  const [platform, setPlatform] = useState('android');
+  const [platform, setPlatform] = useState<'android' | 'ios'>('android');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/admin/apps', {
-      method: 'POST',
-      body: JSON.stringify({ name, package_name: packageName, platform }),
-      headers: { 'Content-Type': 'application/json' },
-    });
-    if (res.ok) {
+    try {
+      await createAppAction({ name, package_name: packageName, platform });
       refresh();
       onClose();
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -314,7 +343,7 @@ function AddAppModal({ onClose, refresh }: { onClose: () => void, refresh: () =>
           <select 
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             value={platform} 
-            onChange={(e) => setPlatform(e.target.value)}
+            onChange={(e) => setPlatform(e.target.value as 'android' | 'ios')}
           >
             <option value="android">Android (APK)</option>
             <option value="ios">iOS (IPA)</option>
@@ -332,18 +361,20 @@ function AddAppModal({ onClose, refresh }: { onClose: () => void, refresh: () =>
 function AddUserModal({ onClose, refresh }: { onClose: () => void, refresh: () => void }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('user');
+  const [role, setRole] = useState<'admin' | 'user'>('user');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/admin/users', {
-      method: 'POST',
-      body: JSON.stringify({ username, password, role }),
-      headers: { 'Content-Type': 'application/json' },
-    });
-    if (res.ok) {
-      refresh();
-      onClose();
+    try {
+      const result = await createUserAction({ username, password_hash: password, role });
+      if (result.error) {
+        alert(result.error);
+      } else {
+        refresh();
+        onClose();
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -360,7 +391,7 @@ function AddUserModal({ onClose, refresh }: { onClose: () => void, refresh: () =
           <select 
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             value={role} 
-            onChange={(e) => setRole(e.target.value)}
+            onChange={(e) => setRole(e.target.value as 'admin' | 'user')}
           >
             <option value="user">QA User</option>
             <option value="admin">Admin</option>
@@ -437,10 +468,11 @@ function AssignmentModal({ userId, apps, onClose }: { userId: number, apps: App[
   const [assignedAppIds, setAssignedAppIds] = useState<number[]>([]);
 
   const fetchAssignments = useCallback(async () => {
-    const res = await fetch(`/api/admin/assignments?userId=${userId}`);
-    if (res.ok) {
-      const data = await res.json();
+    try {
+      const data = await getAssignmentsAction(userId);
       setAssignedAppIds(data.map((a: { app_id: number }) => a.app_id));
+    } catch (e) {
+      console.error(e);
     }
   }, [userId]);
 
@@ -449,12 +481,12 @@ function AssignmentModal({ userId, apps, onClose }: { userId: number, apps: App[
   }, [fetchAssignments]);
 
   const handleSubmit = async () => {
-    const res = await fetch('/api/admin/assignments', {
-      method: 'POST',
-      body: JSON.stringify({ userId, appIds: assignedAppIds }),
-      headers: { 'Content-Type': 'application/json' },
-    });
-    if (res.ok) onClose();
+    try {
+      await updateAssignmentsAction(userId, assignedAppIds);
+      onClose();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -492,9 +524,11 @@ function AdminVersionModal({ app, onClose, refreshApps }: { app: App, onClose: (
 
   const fetchVersions = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/apps/${app.id}/versions`);
-    if (res.ok) {
-      setVersions(await res.json());
+    try {
+      const data = await getAppVersionsAction(app.id);
+      setVersions(data as unknown as Version[]);
+    } catch (e) {
+      console.error(e);
     }
     setLoading(false);
   }, [app.id]);
@@ -506,14 +540,11 @@ function AdminVersionModal({ app, onClose, refreshApps }: { app: App, onClose: (
   const handleDelete = async (versionId: number) => {
     if (!confirm('Are you sure you want to delete this version? This action cannot be undone.')) return;
     
-    const res = await fetch(`/api/admin/versions/${versionId}`, {
-      method: 'DELETE',
-    });
-    
-    if (res.ok) {
+    try {
+      await deleteVersionAction(versionId);
       await fetchVersions();
-      refreshApps(); // Refresh the main app list in case the latest version was deleted
-    } else {
+      refreshApps();
+    } catch (e) {
       alert('Failed to delete version.');
     }
   };

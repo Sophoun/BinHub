@@ -3,25 +3,26 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Download, LogOut, Smartphone, Package, Calendar, Clock, History } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { getMyAppsAction, logoutAction, getAppVersionsAction } from '@/src/lib/actions';
 
 interface AppWithVersion {
   id: number;
   name: string;
   package_name: string;
   platform: 'android' | 'ios';
-  version_id?: number;
-  version_number?: string;
-  build_number?: string;
-  changelog?: string;
-  version_date?: string;
+  version_id?: number | null;
+  version_number?: string | null;
+  build_number?: string | null;
+  changelog?: string | null;
+  version_date?: string | null;
 }
 
 interface Version {
   id: number;
   version_number: string;
-  build_number?: string;
-  changelog?: string;
-  created_at: string;
+  build_number?: string | null;
+  changelog?: string | null;
+  created_at: string | null;
 }
 
 export default function UserDashboard() {
@@ -31,9 +32,11 @@ export default function UserDashboard() {
   const router = useRouter();
 
   const fetchApps = useCallback(async () => {
-    const res = await fetch('/api/user/apps');
-    if (res.ok) {
-      setApps(await res.json());
+    try {
+      const data = await getMyAppsAction();
+      setApps(data);
+    } catch (e) {
+      console.error(e);
     }
     setLoading(false);
   }, []);
@@ -43,7 +46,7 @@ export default function UserDashboard() {
   }, [fetchApps]);
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    await logoutAction();
     router.push('/login');
   };
 
@@ -197,9 +200,11 @@ function VersionHistoryModal({ app, onClose, onInstall }: { app: AppWithVersion,
 
   useEffect(() => {
     const fetchVersions = async () => {
-      const res = await fetch(`/api/apps/${app.id}/versions`);
-      if (res.ok) {
-        setVersions(await res.json());
+      try {
+        const data = await getAppVersionsAction(app.id);
+        setVersions(data as unknown as Version[]);
+      } catch (e) {
+        console.error(e);
       }
       setLoading(false);
     };
@@ -235,7 +240,7 @@ function VersionHistoryModal({ app, onClose, onInstall }: { app: AppWithVersion,
                   </div>
                   <div className="text-xs text-muted-foreground flex items-center gap-1.5">
                     <Calendar className="h-3 w-3" />
-                    {new Date(v.created_at).toLocaleString()}
+                    {v.created_at ? new Date(v.created_at).toLocaleString() : 'N/A'}
                   </div>
                   {v.changelog && (
                     <div className="text-xs text-muted-foreground mt-2 italic border-l-2 pl-2 line-clamp-2">

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Smartphone, Loader2 } from 'lucide-react';
+import { loginAction } from '@/src/lib/actions';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -17,17 +18,16 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ username, password }),
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const formData = new FormData();
+      formData.append('username', username);
+      formData.append('password', password);
+      
+      const result = await loginAction(undefined, formData);
 
-      const data = await res.json();
-      if (data.success) {
-        router.push(data.role === 'admin' ? '/admin' : '/dashboard');
+      if (result.success) {
+        router.push(result.role === 'admin' ? '/admin' : '/dashboard');
       } else {
-        setError(data.message || 'Invalid username or password');
+        setError(result.message || 'Invalid username or password');
       }
     } catch (err) {
       setError('An error occurred. Please try again.');

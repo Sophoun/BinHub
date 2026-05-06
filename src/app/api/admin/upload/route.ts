@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import db, { App } from '@/src/lib/db';
+import db from '@/src/lib/db';
+import { apps, versions } from '@/src/lib/schema';
+import { eq } from 'drizzle-orm';
 import { getSession } from '@/src/lib/auth';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
@@ -13,16 +15,19 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const file = formData.get('file') as File;
-  const appId = formData.get('appId') as string;
+  const appIdStr = formData.get('appId') as string;
   const versionNumber = formData.get('versionNumber') as string;
   const buildNumber = formData.get('buildNumber') as string;
   const changelog = formData.get('changelog') as string;
 
-  if (!file || !appId || !versionNumber) {
+  if (!file || !appIdStr || !versionNumber) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
-  const app = db.prepare('SELECT * FROM apps WHERE id = ?').get(appId) as App | undefined;
+  const appId = parseInt(appIdStr, 10);
+  const appResult = await db.select().from(apps).where(eq(apps.id, appId)).limit(1);
+  const app = appResult[0];
+
   if (!app) {
     return NextResponse.json({ error: 'App not found' }, { status: 404 });
   }
@@ -32,7 +37,7 @@ export async function POST(request: Request) {
 
   const fileExt = file.name.split('.').pop();
   const fileName = `${uuidv4()}.${fileExt}`;
-  const uploadDir = path.join(process.cwd(), 'uploads', appId);
+  const uploadDir = path.join(process.cwd(), 'uploads', appId.toString());
   await mkdir(uploadDir, { recursive: true });
   const filePath = path.join(uploadDir, fileName);
   await writeFile(filePath, buffer);
@@ -76,10 +81,15 @@ export async function POST(request: Request) {
     manifestPath = manifestName;
   }
 
-  db.prepare(`
-    INSERT INTO versions (app_id, version_number, build_number, file_path, manifest_path, changelog)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(appId, versionNumber, buildNumber, fileName, manifestPath, changelog);
+  await db.insert(versions).values({
+    app_id: appId,
+    version_number: versionNumber,
+    build_number: buildNumber || null,
+    file_path: fileName,
+    manifest_path: manifestPath,
+    changelog: changelog || null,
+  });
 
   return NextResponse.json({ success: true });
 }
+

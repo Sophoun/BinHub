@@ -1,17 +1,22 @@
 import { NextResponse } from 'next/server';
-import db, { Version } from '@/src/lib/db';
+import db from '@/src/lib/db';
+import { versions } from '@/src/lib/schema';
+import { eq } from 'drizzle-orm';
 import { readFile } from 'fs/promises';
 import path from 'path';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const versionId = searchParams.get('versionId');
+  const versionIdStr = searchParams.get('versionId');
 
-  if (!versionId) {
+  if (!versionIdStr) {
     return NextResponse.json({ error: 'Missing versionId' }, { status: 400 });
   }
 
-  const version = db.prepare('SELECT * FROM versions WHERE id = ?').get(versionId) as Version | undefined;
+  const versionId = parseInt(versionIdStr, 10);
+  const versionResult = await db.select().from(versions).where(eq(versions.id, versionId)).limit(1);
+  const version = versionResult[0];
+
   if (!version || !version.manifest_path) {
     return NextResponse.json({ error: 'Manifest not found' }, { status: 404 });
   }
@@ -32,3 +37,4 @@ export async function GET(request: Request) {
     },
   });
 }
+
