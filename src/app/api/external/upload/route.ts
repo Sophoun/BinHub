@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import db from '@/src/lib/db';
-import { apps, versions } from '@/src/lib/schema';
+import { apps, versions, api_keys, users } from '@/src/lib/schema';
 import { eq } from 'drizzle-orm';
-import { getSession } from '@/src/lib/auth';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -11,9 +10,31 @@ import fs from 'fs';
 import { triggerWebhooks, enforceRetentionPolicy } from '@/src/lib/actions';
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session || session.user.role !== 'admin') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const apiKey = request.headers.get('X-API-Key');
+
+  if (!apiKey) {
+    return NextResponse.json({ error: 'Missing API Key' }, { status: 401 });
+  }
+
+  // Verify API Key
+  const keyResult = await db.select({
+    userId: api_keys.user_id,
+    userRole: users.role
+  })
+  .from(api_keys)
+  .innerJoin(users, eq(api_keys.user_id, users.id))
+  .where(eq(api_keys.key, apiKey))
+  .limit(1);
+
+  const keyInfo = keyResult[0];
+
+  if (!keyInfo) {
+    return NextResponse.json({ error: 'Invalid API Key' }, { status: 401 });
+  }
+
+  // Only admins can upload for now (could be expanded)
+  if (keyInfo.userRole !== 'admin') {
+    return NextResponse.json({ error: 'Unauthorized: Admin access required' }, { status: 403 });
   }
 
   const formData = await request.formData();
@@ -47,7 +68,7 @@ export async function POST(request: Request) {
   const filePath = path.join(uploadDir, fileName);
   await writeFile(filePath, buffer);
 
-  // Automated Metadata Extraction
+  // Automated Metadata Extraction (Duplicated logic for standalone route)
   let extractedVersion = manualVersion;
   let extractedBuild = manualBuild;
   let extractedPackage = app.package_name;
@@ -69,7 +90,7 @@ export async function POST(request: Request) {
       extractedName = info.CFBundleDisplayName || info.CFBundleName || app.name;
     }
 
-    // Auto-update app icon if not set or update if available
+    // Auto-update app icon
     if (info.icon) {
       const iconBuffer = Buffer.from(info.icon.split(',')[1], 'base64');
       const iconName = `icon.png`;
@@ -78,7 +99,7 @@ export async function POST(request: Request) {
       await db.update(apps).set({ icon_path: iconName }).where(eq(apps.id, appId));
     }
     
-    // Auto-update app details if they changed or were missing
+    // Auto-update app details
     if (extractedPackage !== app.package_name || extractedName !== app.name) {
       await db.update(apps).set({ 
         package_name: extractedPackage, 
@@ -87,7 +108,6 @@ export async function POST(request: Request) {
     }
   } catch (e) {
     console.error('Metadata extraction failed:', e);
-    // Fallback to manual info or fail if missing
     if (!manualVersion) {
       return NextResponse.json({ error: 'Failed to extract metadata and no manual version provided' }, { status: 400 });
     }
@@ -131,27 +151,31 @@ export async function POST(request: Request) {
     await writeFile(mPath, manifestContent);
     manifestPath = manifestName;
   }
+await db.insert(versions).values({
+  app_id: appId,
+  version_number: extractedVersion,
+  build_number: extractedBuild || null,
+  file_path: fileName,
+  manifest_path: manifestPath,
+  changelog: changelog || null,
+});
 
-  await db.insert(versions).values({
-    app_id: appId,
-    version_number: extractedVersion,
-    build_number: extractedBuild || null,
-    file_path: fileName,
-    manifest_path: manifestPath,
-    changelog: changelog || null,
-  });
+// Trigger webhooks & enforce retention (async)
+triggerWebhooks('new_version', {
+  app_name: extractedName,
+  version: extractedVersion,
+  build: extractedBuild,
+  platform: app.platform,
+  changelog: changelog
+}).catch(e => console.error('Webhook error:', e));
 
-  // Trigger webhooks & enforce retention (async)
-  triggerWebhooks('new_version', {
-    app_name: extractedName,
-    version: extractedVersion,
-    build: extractedBuild,
-    platform: app.platform,
-    changelog: changelog
-  }).catch(e => console.error('Webhook error:', e));
+enforceRetentionPolicy(appId).catch(e => console.error('Retention policy error:', e));
 
-  enforceRetentionPolicy(appId).catch(e => console.error('Retention policy error:', e));
-
-  return NextResponse.json({ success: true });
+return NextResponse.json({ 
+  success: true, 
+  version: extractedVersion, 
+  build: extractedBuild,
+  app: extractedName
+});
 }
 

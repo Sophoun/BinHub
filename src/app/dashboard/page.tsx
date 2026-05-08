@@ -1,15 +1,17 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Download, LogOut, Smartphone, Package, Calendar, Clock, History } from 'lucide-react';
+import { Download, LogOut, Smartphone, Package, Calendar, Clock, History, QrCode } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getMyAppsAction, logoutAction, getAppVersionsAction } from '@/src/lib/actions';
+import QRCode from 'qrcode';
 
 interface AppWithVersion {
   id: number;
   name: string;
   package_name: string;
   platform: 'android' | 'ios';
+  icon_path?: string | null;
   version_id?: number | null;
   version_number?: string | null;
   build_number?: string | null;
@@ -29,6 +31,7 @@ export default function UserDashboard() {
   const [apps, setApps] = useState<AppWithVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAppHistory, setSelectedAppHistory] = useState<AppWithVersion | null>(null);
+  const [showQRApp, setShowQRApp] = useState<AppWithVersion | null>(null);
   const router = useRouter();
 
   const fetchApps = useCallback(async () => {
@@ -114,8 +117,16 @@ export default function UserDashboard() {
               {apps.map((app) => (
                 <div key={app.id} className="group relative flex flex-col rounded-lg border bg-card p-6 shadow-sm transition-shadow hover:shadow-md">
                   <div className="flex items-start justify-between mb-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                      <Package className="h-6 w-6" />
+                    <div className="flex h-12 w-12 items-center justify-center rounded-md bg-muted overflow-hidden transition-colors group-hover:shadow-sm">
+                      {app.icon_path ? (
+                        <img 
+                          src={`/api/icon?appId=${app.id}&t=${new Date().getTime()}`} 
+                          alt={app.name} 
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <Package className="h-6 w-6 text-muted-foreground" />
+                      )}
                     </div>
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors ${
                       app.platform === 'ios' ? 'border-transparent bg-primary text-primary-foreground' : 'border-transparent bg-secondary text-secondary-foreground'
@@ -157,6 +168,13 @@ export default function UserDashboard() {
                           {app.platform === 'ios' ? 'Install' : 'Download'}
                         </button>
                         <button
+                          onClick={() => setShowQRApp(app)}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-md border bg-background text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                          title="QR Code"
+                        >
+                          <QrCode className="h-4 w-4" />
+                        </button>
+                        <button
                           onClick={() => setSelectedAppHistory(app)}
                           className="inline-flex h-9 w-9 items-center justify-center rounded-md border bg-background text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                           title="Version History"
@@ -182,6 +200,13 @@ export default function UserDashboard() {
           app={selectedAppHistory} 
           onClose={() => setSelectedAppHistory(null)} 
           onInstall={(versionId) => handleInstall(selectedAppHistory.platform, versionId)}
+        />
+      )}
+
+      {showQRApp && (
+        <QRCodeModal 
+          app={showQRApp} 
+          onClose={() => setShowQRApp(null)} 
         />
       )}
 
@@ -259,6 +284,76 @@ function VersionHistoryModal({ app, onClose, onInstall }: { app: AppWithVersion,
             ))
           )}
         </div>
+
+        <button 
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        >
+          <span className="sr-only">Close</span>
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function QRCodeModal({ app, onClose }: { app: AppWithVersion, onClose: () => void }) {
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+
+  useEffect(() => {
+    const generateQR = async () => {
+      try {
+        const protocol = window.location.protocol;
+        const host = window.location.host;
+        let installUrl = '';
+
+        if (app.platform === 'android') {
+          installUrl = `${protocol}//${host}/api/download?versionId=${app.version_id}`;
+        } else {
+          const manifestUrl = `${protocol}//${host}/api/manifest?versionId=${app.version_id}`;
+          installUrl = `itms-services://?action=download-manifest&url=${encodeURIComponent(manifestUrl)}`;
+        }
+
+        const dataUrl = await QRCode.toDataURL(installUrl, {
+          width: 300,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#ffffff',
+          },
+        });
+        setQrDataUrl(dataUrl);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    if (app.version_id) {
+      generateQR();
+    }
+  }, [app]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+      <div className="relative w-full max-w-sm rounded-lg border bg-card p-6 shadow-lg sm:p-8 animate-in zoom-in-95 duration-200 flex flex-col items-center">
+        <div className="flex flex-col space-y-1.5 text-center mb-6">
+          <h2 className="text-xl font-semibold leading-none tracking-tight">Scan to {app.platform === 'ios' ? 'Install' : 'Download'}</h2>
+          <p className="text-sm text-muted-foreground">{app.name} v{app.version_number}</p>
+        </div>
+
+        <div className="bg-white p-4 rounded-lg shadow-inner mb-6">
+          {qrDataUrl ? (
+            <img src={qrDataUrl} alt="QR Code" className="h-48 w-48 sm:h-64 sm:w-64" />
+          ) : (
+            <div className="h-48 w-48 sm:h-64 sm:w-64 flex items-center justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+            </div>
+          )}
+        </div>
+
+        <p className="text-xs text-center text-muted-foreground max-w-[200px]">
+          Point your camera at the QR code to quickly {app.platform === 'ios' ? 'install' : 'download'} this build on your device.
+        </p>
 
         <button 
           onClick={onClose}
