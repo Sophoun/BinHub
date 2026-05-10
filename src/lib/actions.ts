@@ -28,7 +28,8 @@ export async function loginAction(
     .select()
     .from(users)
     .where(eq(users.username, username))
-    .limit(1);
+    .limit(1)
+    .all();
   const user = userResult[0];
 
   if (!user || !(await bcrypt.compare(password, user.password_hash))) {
@@ -52,6 +53,7 @@ export async function getAppsAction() {
   }
 
   const appsData = await db.query.apps.findMany({
+    orderBy: [desc(apps.updated_at)],
     with: {
       versions: {
         orderBy: [desc(versions.created_at)],
@@ -67,7 +69,8 @@ export async function getAppsAction() {
     })
     .from(download_logs)
     .innerJoin(versions, eq(download_logs.version_id, versions.id))
-    .groupBy(versions.app_id);
+    .groupBy(versions.app_id)
+    .all();
 
   const countMap = new Map(downloadCounts.map((c) => [c.app_id, c.count]));
 
@@ -114,7 +117,7 @@ export async function createAppAction(formData: FormData) {
     const buffer = Buffer.from(await icon.arrayBuffer());
     await writeFile(fullPath, buffer);
 
-    await db.update(apps).set({ icon_path: iconPath }).where(eq(apps.id, appId));
+    await db.update(apps).set({ icon_path: iconPath, updated_at: new Date().toISOString() }).where(eq(apps.id, appId));
   }
 
   revalidatePath("/admin");
@@ -136,6 +139,7 @@ export async function updateAppAction(appId: number, formData: FormData) {
     name,
     package_name,
     platform,
+    updated_at: new Date().toISOString(),
   };
 
   if (icon && icon.size > 0) {
@@ -191,7 +195,8 @@ export async function getUsersAction() {
       username: users.username,
       role: users.role,
     })
-    .from(users);
+    .from(users)
+    .all();
 }
 
 export async function createUserAction(data: {
@@ -266,7 +271,8 @@ export async function getAssignmentsAction(userId: number) {
   return await db
     .select({ app_id: user_apps.app_id })
     .from(user_apps)
-    .where(eq(user_apps.user_id, userId));
+    .where(eq(user_apps.user_id, userId))
+    .all();
 }
 
 export async function updateAssignmentsAction(
@@ -319,19 +325,22 @@ export async function getAppVersionsAction(appId: number) {
     throw new Error("Unauthorized");
   }
 
+  const userId = Number(session.user.id);
+
   // If not admin, check if user has access to this app
   if (session.user.role !== "admin") {
     // Check direct assignment
     const directAccess = await db
-      .select({ id: user_apps.user_id })
+      .select({ id: user_apps.app_id })
       .from(user_apps)
       .where(
         and(
-          eq(user_apps.user_id, session.user.id),
+          eq(user_apps.user_id, userId),
           eq(user_apps.app_id, appId),
         ),
       )
-      .limit(1);
+      .limit(1)
+      .all();
 
     // Check group assignment
     const groupAccess = await db
@@ -340,11 +349,12 @@ export async function getAppVersionsAction(appId: number) {
       .innerJoin(user_groups, eq(group_apps.group_id, user_groups.group_id))
       .where(
         and(
-          eq(user_groups.user_id, session.user.id),
+          eq(user_groups.user_id, userId),
           eq(group_apps.app_id, appId)
         )
       )
-      .limit(1);
+      .limit(1)
+      .all();
 
     if (directAccess.length === 0 && groupAccess.length === 0) {
       throw new Error("Forbidden");
@@ -355,7 +365,8 @@ export async function getAppVersionsAction(appId: number) {
     .select()
     .from(versions)
     .where(eq(versions.app_id, appId))
-    .orderBy(desc(versions.created_at));
+    .orderBy(desc(versions.created_at))
+    .all();
 }
 
 export async function deleteVersionAction(versionId: number) {
@@ -376,18 +387,22 @@ export async function getMyAppsAction() {
     throw new Error("Unauthorized");
   }
 
+  const userId = Number(session.user.id);
+
   // 1. Get apps assigned directly
   const directAppIds = await db
     .select({ id: user_apps.app_id })
     .from(user_apps)
-    .where(eq(user_apps.user_id, session.user.id));
+    .where(eq(user_apps.user_id, userId))
+    .all();
 
   // 2. Get apps assigned via groups
   const groupAppIds = await db
     .select({ id: group_apps.app_id })
     .from(group_apps)
     .innerJoin(user_groups, eq(group_apps.group_id, user_groups.group_id))
-    .where(eq(user_groups.user_id, session.user.id));
+    .where(eq(user_groups.user_id, userId))
+    .all();
 
   // Combine and deduplicate IDs
   const allAppIds = Array.from(new Set([
@@ -433,7 +448,7 @@ if (!session || session.user.role !== "admin") {
   throw new Error("Unauthorized");
 }
 
-return await db.select().from(groups).orderBy(desc(groups.created_at));
+return await db.select().from(groups).orderBy(desc(groups.created_at)).all();
 }
 
 export async function createGroupAction(data: { name: string; description?: string }) {
@@ -471,12 +486,14 @@ if (!session || session.user.role !== "admin") {
 const assignedUsers = await db
   .select({ user_id: user_groups.user_id })
   .from(user_groups)
-  .where(eq(user_groups.group_id, groupId));
+  .where(eq(user_groups.group_id, groupId))
+  .all();
 
 const assignedApps = await db
   .select({ app_id: group_apps.app_id })
   .from(group_apps)
-  .where(eq(group_apps.group_id, groupId));
+  .where(eq(group_apps.group_id, groupId))
+  .all();
 
 return {
   userIds: assignedUsers.map((u) => u.user_id),
@@ -527,11 +544,14 @@ if (!session) {
   throw new Error("Unauthorized");
 }
 
+const userId = Number(session.user.id);
+
 return await db
   .select()
   .from(api_keys)
-  .where(eq(api_keys.user_id, session.user.id))
-  .orderBy(desc(api_keys.created_at));
+  .where(eq(api_keys.user_id, userId))
+  .orderBy(desc(api_keys.created_at))
+  .all();
 }
 
 export async function createApiKeyAction(name: string) {
@@ -540,10 +560,11 @@ if (!session) {
   throw new Error("Unauthorized");
 }
 
+const userId = Number(session.user.id);
 const key = crypto.randomBytes(32).toString("hex");
 
 await db.insert(api_keys).values({
-  user_id: session.user.id,
+  user_id: userId,
   key: key,
   name,
 });
@@ -558,7 +579,9 @@ if (!session) {
   throw new Error("Unauthorized");
 }
 
-await db.delete(api_keys).where(and(eq(api_keys.id, id), eq(api_keys.user_id, session.user.id)));
+const userId = Number(session.user.id);
+
+await db.delete(api_keys).where(and(eq(api_keys.id, id), eq(api_keys.user_id, userId)));
 revalidatePath("/admin");
 return { success: true };
 }
@@ -574,7 +597,8 @@ return await db
   .select()
   .from(public_links)
   .where(eq(public_links.version_id, versionId))
-  .orderBy(desc(public_links.created_at));
+  .orderBy(desc(public_links.created_at))
+  .all();
 }
 
 export async function createPublicLinkAction(data: {
@@ -620,6 +644,56 @@ await db.delete(public_links).where(eq(public_links.id, id));
 return { success: true };
 }
 
+export async function getPublicLinkInfoAction(token: string) {
+  const linkResult = await db.select({
+    id: public_links.id,
+    expires_at: public_links.expires_at,
+    has_password: sql<boolean>`CASE WHEN ${public_links.password_hash} IS NOT NULL THEN 1 ELSE 0 END`,
+    version: versions,
+    app: apps
+  })
+  .from(public_links)
+  .innerJoin(versions, eq(public_links.version_id, versions.id))
+  .innerJoin(apps, eq(versions.app_id, apps.id))
+  .where(eq(public_links.token, token))
+  .limit(1)
+  .all();
+
+  const info = linkResult[0];
+  if (!info) return null;
+
+  // Check expiration
+  if (info.expires_at && new Date(info.expires_at) < new Date()) {
+    return { expired: true };
+  }
+
+  return {
+    ...info,
+    expired: false
+  };
+}
+
+export async function verifyPublicLinkPasswordAction(token: string, password?: string) {
+  const linkResult = await db.select({
+    password_hash: public_links.password_hash
+  })
+  .from(public_links)
+  .where(eq(public_links.token, token))
+  .limit(1)
+  .all();
+
+  const link = linkResult[0];
+  if (!link) return { success: false, error: 'Invalid link' };
+
+  if (link.password_hash) {
+    if (!password || !(await bcrypt.compare(password, link.password_hash))) {
+      return { success: false, error: 'Invalid password' };
+    }
+  }
+
+  return { success: true };
+}
+
 // Webhooks Actions
 export async function getWebhooksAction() {
   const session = await getSession();
@@ -627,7 +701,7 @@ export async function getWebhooksAction() {
     throw new Error("Unauthorized");
   }
 
-  return await db.select().from(webhooks).orderBy(desc(webhooks.created_at));
+  return await db.select().from(webhooks).orderBy(desc(webhooks.created_at)).all();
 }
 
 export async function createWebhookAction(data: { name: string; url: string }) {
@@ -673,22 +747,44 @@ export async function triggerWebhooks(event: string, data: any) {
   const activeWebhooks = await db
     .select()
     .from(webhooks)
-    .where(and(eq(webhooks.event, event), eq(webhooks.is_active, true)));
-
-  const payload = {
-    event,
-    timestamp: new Date().toISOString(),
-    data,
-  };
+    .where(and(eq(webhooks.event, event), eq(webhooks.is_active, true)))
+    .all();
 
   const results = await Promise.allSettled(
-    activeWebhooks.map((wh) =>
-      fetch(wh.url, {
+    activeWebhooks.map((wh) => {
+      let payload: any = {
+        event,
+        timestamp: new Date().toISOString(),
+        data,
+      };
+
+      // Special handling for Telegram
+      if (wh.url.includes('api.telegram.org')) {
+        const platformEmoji = data.platform === 'ios' ? '🍎' : '🤖';
+        const message = `🚀 *New Build Available!* \n\n` +
+          `📦 *App:* ${data.app_name}\n` +
+          `${platformEmoji} *Platform:* ${data.platform.toUpperCase()}\n` +
+          `🔢 *Version:* v${data.version} (${data.build || '1'})\n` +
+          (data.changelog ? `\n📝 *Notes:* \n_${data.changelog}_` : '');
+
+        // Extract chat_id from URL if it's there, otherwise assume it's in the payload template
+        // For simplicity, we expect the URL to be: https://api.telegram.org/bot<token>/sendMessage?chat_id=<id>
+        const url = new URL(wh.url);
+        const chatId = url.searchParams.get('chat_id');
+        
+        payload = {
+          chat_id: chatId,
+          text: message,
+          parse_mode: 'Markdown'
+        };
+      }
+
+      return fetch(wh.url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-      }),
-    ),
+      });
+    }),
   );
 
   results.forEach((res, i) => {
@@ -705,7 +801,7 @@ export async function getSettingsAction() {
     throw new Error("Unauthorized");
   }
 
-  const allSettings = await db.select().from(settings);
+  const allSettings = await db.select().from(settings).all();
   const settingsMap: Record<string, string> = {};
   allSettings.forEach((s) => (settingsMap[s.key] = s.value));
 
@@ -730,20 +826,22 @@ export async function updateSettingsAction(key: string, value: string) {
 }
 
 export async function enforceRetentionPolicy(appId: number) {
-  const setting = await db
+  const settingResult = await db
     .select()
     .from(settings)
     .where(eq(settings.key, "retention_count"))
-    .limit(1);
+    .limit(1)
+    .all();
 
-  const retentionCount = parseInt(setting[0]?.value || "0", 10);
+  const retentionCount = parseInt(settingResult[0]?.value || "0", 10);
   if (retentionCount <= 0) return;
 
   const appVersions = await db
     .select()
     .from(versions)
     .where(eq(versions.app_id, appId))
-    .orderBy(desc(versions.created_at));
+    .orderBy(desc(versions.created_at))
+    .all();
 
   if (appVersions.length > retentionCount) {
     const toDelete = appVersions.slice(retentionCount);

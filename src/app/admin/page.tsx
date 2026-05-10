@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Users, Smartphone, Upload, LogOut, LayoutDashboard, ChevronRight, Package, User as UserIcon, History, Trash2, Calendar, Key, Pencil, Download, ShieldCheck, Link, Copy, Check, Settings, Bell, HardDrive, Trash } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { App as BaseApp } from '@/src/lib/db';
+import { ThemeToggle } from '@/src/components/theme-toggle';
 import { 
   getAppsAction, 
   getUsersAction, 
@@ -311,6 +312,7 @@ export default function AdminDashboard() {
             {activeTab === 'apps' ? 'Applications' : activeTab === 'groups' ? 'Distribution Groups' : activeTab === 'api-keys' ? 'CI/CD API Keys' : activeTab === 'settings' ? 'Global Settings' : 'Users Management'}
           </h2>
           <div className="flex items-center gap-4">
+            <ThemeToggle />
             {activeTab !== 'settings' && (
               <button
                 onClick={() => {
@@ -331,13 +333,55 @@ export default function AdminDashboard() {
         <main className="flex-1 overflow-y-auto p-6 md:p-8">
           <div className="mx-auto max-w-6xl space-y-6">
             {activeTab === 'apps' && (
-              <AppList 
-                apps={apps} 
-                onUpload={(id: number) => setShowUpload(id)}
-                onManageVersions={(app: App) => setManageVersionsApp(app)}
-                onEdit={(app: App) => setShowEditApp(app)}
-                onDelete={handleDeleteApp}
-              />
+              <>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-xl border bg-card p-6 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <Smartphone className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Total Apps</span>
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-2xl font-bold">{apps.length}</div>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border bg-card p-6 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <Download className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Downloads</span>
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-2xl font-bold">
+                        {apps.reduce((acc, app) => acc + (app.download_count || 0), 0)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border bg-card p-6 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">QA Users</span>
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-2xl font-bold">{users.filter(u => u.role === 'user').length}</div>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border bg-card p-6 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Active Groups</span>
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-2xl font-bold">{groups.length}</div>
+                    </div>
+                  </div>
+                </div>
+                <AppList 
+                  apps={apps} 
+                  onUpload={(id: number) => setShowUpload(id)}
+                  onManageVersions={(app: App) => setManageVersionsApp(app)}
+                  onEdit={(app: App) => setShowEditApp(app)}
+                  onDelete={handleDeleteApp}
+                />
+              </>
             )}
             {activeTab === 'groups' && (
               <GroupList 
@@ -387,7 +431,6 @@ export default function AdminDashboard() {
       {showUpload && <UploadModal appId={showUpload} onClose={() => setShowUpload(null)} refresh={fetchApps} />}
       {showAssignments && <AssignmentModal userId={showAssignments} apps={apps} onClose={() => setShowAssignments(null)} />}
       {showGroupAssignments && <GroupAssignmentModal groupId={showGroupAssignments} users={users} apps={apps} onClose={() => setShowGroupAssignments(null)} />}
-      {showPublicLinks && <PublicLinkModal version={showPublicLinks} onClose={() => setShowPublicLinks(null)} />}
       {showChangePassword && <ChangePasswordModal user={showChangePassword} onClose={() => setShowChangePassword(null)} />}
       {manageVersionsApp && (
         <AdminVersionModal 
@@ -397,6 +440,7 @@ export default function AdminDashboard() {
           onManagePublicLinks={(v) => setShowPublicLinks(v)}
         />
       )}
+      {showPublicLinks && <PublicLinkModal version={showPublicLinks} onClose={() => setShowPublicLinks(null)} />}
     </div>
   );
 }
@@ -408,6 +452,7 @@ function AppList({ apps, onUpload, onManageVersions, onEdit, onDelete }: { apps:
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50 transition-colors">
+              <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground w-[80px]">ID</th>
               <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">App</th>
               <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Platform</th>
               <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Package</th>
@@ -421,6 +466,7 @@ function AppList({ apps, onUpload, onManageVersions, onEdit, onDelete }: { apps:
           <tbody className="[&_tr:last-child]:border-0">
             {apps.map((app) => (
               <tr key={app.id} className="border-b transition-colors hover:bg-muted/50">
+                <td className="p-4 align-middle font-mono text-xs text-muted-foreground">#{app.id}</td>
                 <td className="p-4 align-middle">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted overflow-hidden">
@@ -1517,7 +1563,7 @@ function PublicLinkModal({ version, onClose }: { version: Version, onClose: () =
   };
 
   const copyLink = (token: string) => {
-    const url = `${window.location.protocol}//${window.location.host}/api/public/download?token=${token}`;
+    const url = `${window.location.protocol}//${window.location.host}/p/${token}`;
     navigator.clipboard.writeText(url);
     setCopiedToken(token);
     setTimeout(() => setCopiedToken(null), 2000);

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Download, LogOut, Smartphone, Package, Calendar, Clock, History, QrCode } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getMyAppsAction, logoutAction, getAppVersionsAction } from '@/src/lib/actions';
+import { ThemeToggle } from '@/src/components/theme-toggle';
 import QRCode from 'qrcode';
 
 interface AppWithVersion {
@@ -72,20 +73,23 @@ export default function UserDashboard() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-background text-foreground transition-colors duration-300">
       <header className="sticky top-0 z-40 border-b bg-card">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <div className="flex items-center gap-2 font-semibold">
             <Smartphone className="h-5 w-5 text-primary" />
             <span>BinHub</span>
           </div>
-          <button
-            onClick={handleLogout}
-            className="inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-          </button>
+          <div className="flex items-center gap-4">
+            <ThemeToggle />
+            <button
+              onClick={handleLogout}
+              className="inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
@@ -115,7 +119,7 @@ export default function UserDashboard() {
           ) : (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {apps.map((app) => (
-                <div key={app.id} className="group relative flex flex-col rounded-lg border bg-card p-6 shadow-sm transition-shadow hover:shadow-md">
+                <div key={app.id} className="group relative flex flex-col rounded-lg border bg-card p-6 shadow-sm transition-all hover:shadow-md hover:border-primary/20">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-md bg-muted overflow-hidden transition-colors group-hover:shadow-sm">
                       {app.icon_path ? (

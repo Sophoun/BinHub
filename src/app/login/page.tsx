@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Smartphone, Loader2 } from 'lucide-react';
 import { loginAction } from '@/src/lib/actions';
+import { ThemeToggle } from '@/src/components/theme-toggle';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -21,7 +22,7 @@ export default function LoginPage() {
       const formData = new FormData();
       formData.append('username', username);
       formData.append('password', password);
-      
+
       const result = await loginAction(undefined, formData);
 
       if (result.success) {
@@ -37,7 +38,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/50 p-6 md:p-10">
+    <div className="relative flex min-h-screen items-center justify-center bg-muted/50 p-6 md:p-10 transition-colors duration-300">
+      <div className="absolute right-6 top-6">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center space-y-2 text-center">
           <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-primary-foreground">

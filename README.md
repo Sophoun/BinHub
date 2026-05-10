@@ -1,31 +1,40 @@
 # BinHub
 
-A secure, self-hosted Over-The-Air (OTA) distribution platform for mobile applications (APK and iPA). Designed for QA teams to easily access and install builds directly on their devices.
+A secure, self-hosted Over-The-Air (OTA) distribution platform for mobile applications (APK and IPA). Designed for development teams to easily distribute builds to QA testers and stakeholders.
 
 ## Features
 
 - **Admin Dashboard:**
-  - **Application Management:** Add multiple Android and iOS applications.
-  - **Version Control:** Upload new APK or IPA builds with version numbers, build numbers, and changelogs.
-  - **User Management:** Create accounts for QA testers.
-  - **Restricted Access:** Assign specific applications to specific users so they only see what they need to test.
+  - **Application Management:** Add and manage multiple Android and iOS applications.
+  - **Automated Metadata Extraction:** Automatically extracts app name, package ID, version, and build number from uploaded APK/IPA files.
+  - **Icon Extraction:** Automatically parses and sets the app icon from the binary.
+  - **Version Control:** Manage multiple builds with changelogs and download tracking.
+  - **Distribution Groups:** Organize users into groups for bulk access management.
+  - **Restricted Access:** Granular control over which users or groups can see specific applications.
+- **Public Sharing:**
+  - **Secure Links:** Generate shareable, tokenized links for specific versions.
+  - **Password Protection:** Optional password protection for public download links.
+  - **Public Landing Page:** Professional landing page for external testers with one-click install support.
 - **User (QA) Dashboard:**
-  - **Clean Interface:** A minimalist shadcn-inspired grid view of available applications.
+  - **Modern Interface:** Minimalist design with Dark Mode support and responsive layout.
+  - **QR Code Installation:** Scan a QR code to quickly install builds on mobile devices.
   - **One-Click Installation:**
     - **Android:** Direct APK download.
-    - **iOS:** Wireless "Install" using the `itms-services` protocol (auto-generated manifests).
-- **Secure & Lightweight:**
-  - **Authentication:** JWT-based secure sessions.
-  - **Database:** Powered by SQLite for zero-config data storage.
-  - **Local Storage:** Files are stored locally on the server filesystem.
+    - **iOS:** Wireless installation using the `itms-services` protocol.
+- **Enterprise Ready:**
+  - **CI/CD Integration:** Automated build uploads via a secure API with API keys.
+  - **Webhook Support:** Outgoing webhooks for Slack, Discord, or custom services.
+  - **Telegram Integration:** Native, richly-formatted notifications for Telegram groups.
+  - **Storage Retention:** Automatically clean up old builds to save disk space.
 
 ## Tech Stack
 
 - **Framework:** Next.js 15+ (App Router)
 - **Language:** TypeScript
-- **Database:** SQLite (`better-sqlite3`)
-- **Styling:** Tailwind CSS 4 (shadcn/ui aesthetic)
+- **Database:** SQLite (`better-sqlite3`) with Drizzle ORM
+- **Styling:** Tailwind CSS 4
 - **Icons:** Lucide React
+- **Theme:** `next-themes` (Dark/Light/System)
 
 ## Getting Started
 
@@ -40,7 +49,7 @@ A secure, self-hosted Over-The-Air (OTA) distribution platform for mobile applic
 
     ```bash
     git clone <your-repo-url>
-    cd open_ota
+    cd BinHub
     ```
 
 2. **Install dependencies:**
@@ -59,26 +68,17 @@ A secure, self-hosted Over-The-Air (OTA) distribution platform for mobile applic
 
 ## Docker Deployment
 
-### Build and Publish
+### Run with Docker Compose (Recommended)
 
-You can build and publish the image to Docker Hub using the provided scripts:
+To run the application with full persistence:
 
-- **Linux/macOS/Git Bash:**
+```bash
+docker-compose up -d
+```
 
-  ```bash
-  chmod +x publish.sh
-  ./publish.sh
-  ```
+### Run with Docker CLI
 
-- **Windows (PowerShell):**
-
-  ```powershell
-  ./publish.ps1
-  ```
-
-### Run with Docker
-
-You can run the application using the standard `docker run` command. Ensure you map the volumes for the database and uploads directory so your data persists across container restarts:
+Ensure you map the volumes for the database and uploads directory:
 
 ```bash
 docker run -d \
@@ -86,45 +86,70 @@ docker run -d \
   -p 3000:3000 \
   -v $(pwd)/ota.db:/app/ota.db \
   -v $(pwd)/uploads:/app/uploads \
-  Sophoun/BinHub:latest
+  sophoun/binhub:latest
 ```
-
-*(Note: On Windows PowerShell, use `${PWD}` instead of `$(pwd)`)*
-
-### Run with Docker Compose
-
-To run the application locally with persistence for the database and uploads:
-
-```bash
-docker-compose up -d
-```
-
-The application will be available at `http://localhost:3000`.
 
 ### Initial Setup
 
-On the first run, accessing the login page will automatically initialize a default administrator account:
+On the first run, the system initializes a default administrator account:
 
 - **Username:** `admin`
 - **Password:** `admin123`
 
-**Important:** It is highly recommended to change this password or create a new admin user and delete the default one after your first login.
+**Note:** Please change this password immediately in the Admin Dashboard or create a new admin user.
 
-## Usage Guide
+## CI/CD Integration Guide
 
-### For Administrators
+Automate build delivery from your CI/CD pipeline (GitHub Actions, GitLab CI, etc.).
 
-1. **Login** using the admin credentials.
-2. Navigate to the **Apps** tab and click "Add App" to register a new application.
-3. Click "New Version" on an app card to upload an APK or IPA file.
-4. Navigate to the **Users** tab to create accounts for your QA team.
-5. Click "Assign Apps" next to a user to grant them access to specific applications.
+**Endpoint:** `POST /api/external/upload`
+**Header:** `X-API-Key: YOUR_API_KEY`
 
-### For QA Users
+### Request Parameters (FormData)
 
-1. **Login** with your assigned credentials.
-2. View the list of applications assigned to you.
-3. Click **Download** (Android) or **Install** (iOS) to get the latest build.
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `file` | File | The `.apk` or `.ipa` binary file. |
+| `appId` | String | The ID of the application (found in the Admin Dashboard "ID" column). |
+| `changelog` | String | Release notes for this version. |
+
+### GitHub Actions Example
+
+```yaml
+- name: Upload to BinHub
+  run: |
+    curl -X POST https://your-binhub-url.com/api/external/upload \
+      -H "X-API-Key: ${{ secrets.BINHUB_API_KEY }}" \
+      -F "file=@app-release.apk" \
+      -F "appId=1" \
+      -F "changelog=CI Build: ${{ github.event.head_commit.message }}"
+```
+
+## Notifications Setup
+
+### Telegram Integration
+
+1. Create a bot via [@BotFather](https://t.me/botfather).
+2. Add the bot to your group and get your `chat_id`.
+3. In BinHub **Settings**, add a new **Outgoing Webhook**:
+   `https://api.telegram.org/bot<TOKEN>/sendMessage?chat_id=<CHAT_ID>`
+4. BinHub will automatically detect the Telegram URL and send richly formatted Markdown messages.
+
+### Custom Webhooks
+
+For Slack or custom integrations, BinHub sends a standard JSON payload:
+
+```json
+{
+  "event": "new_version",
+  "data": {
+    "app_name": "QA App",
+    "version": "1.0.0",
+    "platform": "android",
+    "changelog": "Notes here..."
+  }
+}
+```
 
 ## License
 
@@ -132,4 +157,4 @@ This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) f
 
 ---
 
-Built with ❤️ for QA teams.
+Built with ❤️ for development teams.

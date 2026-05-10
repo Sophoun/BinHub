@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   }
 
   const appId = parseInt(appIdStr, 10);
-  const appResult = await db.select().from(apps).where(eq(apps.id, appId)).limit(1);
+  const appResult = await db.select().from(apps).where(eq(apps.id, appId)).limit(1).all();
   const app = appResult[0];
 
   if (!app || !app.icon_path) {

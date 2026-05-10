@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configuration
-IMAGE_NAME="Sophoun/BinHub"
+IMAGE_NAME="sophoun/binhub"
 VERSION="latest"
 
 # Build the image

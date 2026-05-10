@@ -25,7 +25,9 @@ try {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'user'
+      role TEXT NOT NULL DEFAULT 'user',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS apps (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,7 +35,8 @@ try {
       package_name TEXT NOT NULL,
       platform TEXT NOT NULL,
       icon_path TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS user_apps (
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -54,7 +57,8 @@ try {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
       description TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS user_groups (
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

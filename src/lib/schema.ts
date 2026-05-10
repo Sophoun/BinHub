@@ -6,6 +6,8 @@ export const users = sqliteTable('users', {
   username: text('username').notNull().unique(),
   password_hash: text('password_hash').notNull(),
   role: text('role', { enum: ['admin', 'user'] }).notNull().default('user'),
+  created_at: text('created_at').default(sql`(CURRENT_TIMESTAMP)`),
+  updated_at: text('updated_at').default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const apps = sqliteTable('apps', {
@@ -14,7 +16,8 @@ export const apps = sqliteTable('apps', {
   package_name: text('package_name').notNull(),
   platform: text('platform', { enum: ['android', 'ios'] }).notNull(),
   icon_path: text('icon_path'),
-  created_at: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  created_at: text('created_at').default(sql`(CURRENT_TIMESTAMP)`),
+  updated_at: text('updated_at').default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const user_apps = sqliteTable('user_apps', {
@@ -32,14 +35,15 @@ export const versions = sqliteTable('versions', {
   file_path: text('file_path').notNull(),
   manifest_path: text('manifest_path'),
   changelog: text('changelog'),
-  created_at: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  created_at: text('created_at').default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const groups = sqliteTable('groups', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull().unique(),
   description: text('description'),
-  created_at: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  created_at: text('created_at').default(sql`(CURRENT_TIMESTAMP)`),
+  updated_at: text('updated_at').default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const user_groups = sqliteTable('user_groups', {
