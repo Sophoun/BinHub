@@ -98,23 +98,23 @@ On the first run, the system initializes a default administrator account:
 
 **Note:** Please change this password immediately in the Admin Dashboard or create a new admin user.
 
-## CI/CD Integration Guide
+## CI/CD & SDK Integration Guide
+
+### 1. Automated Uploads via API
 
 Automate build delivery from your CI/CD pipeline (GitHub Actions, GitLab CI, etc.).
 
 **Endpoint:** `POST /api/external/upload`
 **Header:** `X-API-Key: YOUR_API_KEY`
 
-### Request Parameters (FormData)
-
+#### Request Parameters (FormData)
 | Field | Type | Description |
 | :--- | :--- | :--- |
 | `file` | File | The `.apk` or `.ipa` binary file. |
 | `appId` | String | The ID of the application (found in the Admin Dashboard "ID" column). |
 | `changelog` | String | Release notes for this version. |
 
-### GitHub Actions Example
-
+#### GitHub Actions Example
 ```yaml
 - name: Upload to BinHub
   run: |
@@ -124,6 +124,36 @@ Automate build delivery from your CI/CD pipeline (GitHub Actions, GitLab CI, etc
       -F "appId=1" \
       -F "changelog=CI Build: ${{ github.event.head_commit.message }}"
 ```
+
+### 2. In-App Update API (SDK)
+
+Allow your mobile apps to check for new versions automatically on startup.
+
+**Endpoint:** `GET /api/external/check-update`
+**Header:** `X-API-Key: YOUR_API_KEY`
+
+#### Query Parameters
+| Parameter | Description |
+| :--- | :--- |
+| `appId` | (Preferred) The unique ID of the app (from Admin Dashboard). |
+| `packageName` | The bundle identifier or package name (fallback if `appId` not provided). |
+| `platform` | (Optional) `android` or `ios`. Required if using `packageName`. |
+
+#### Response Format
+```json
+{
+  "success": true,
+  "app": { "id": 1, "name": "QA Runner", "package_name": "com.company.app", "platform": "android" },
+  "latest_version": {
+    "version_number": "1.2.0",
+    "build_number": "104",
+    "changelog": "Bug fixes",
+    "install_url": "itms-services://...",
+    "download_url": "https://..."
+  }
+}
+```
+
 
 ## Notifications Setup
 
