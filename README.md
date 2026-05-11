@@ -84,8 +84,7 @@ Ensure you map the volumes for the database and uploads directory:
 docker run -d \
   --name binhub \
   -p 3000:3000 \
-  -v $(pwd)/ota.db:/app/ota.db \
-  -v $(pwd)/uploads:/app/uploads \
+  -v $(pwd)/data:/app/data \
   sophoun/binhub:latest
 ```
 
@@ -108,6 +107,7 @@ Automate build delivery from your CI/CD pipeline (GitHub Actions, GitLab CI, etc
 **Header:** `X-API-Key: YOUR_API_KEY`
 
 #### Request Parameters (FormData)
+
 | Field | Type | Description |
 | :--- | :--- | :--- |
 | `file` | File | The `.apk` or `.ipa` binary file. |
@@ -115,6 +115,7 @@ Automate build delivery from your CI/CD pipeline (GitHub Actions, GitLab CI, etc
 | `changelog` | String | Release notes for this version. |
 
 #### GitHub Actions Example
+
 ```yaml
 - name: Upload to BinHub
   run: |
@@ -133,6 +134,7 @@ Allow your mobile apps to check for new versions automatically on startup.
 **Header:** `X-API-Key: YOUR_API_KEY`
 
 #### Query Parameters
+
 | Parameter | Description |
 | :--- | :--- |
 | `appId` | (Preferred) The unique ID of the app (from Admin Dashboard). |
@@ -140,6 +142,7 @@ Allow your mobile apps to check for new versions automatically on startup.
 | `platform` | (Optional) `android` or `ios`. Required if using `packageName`. |
 
 #### Response Format
+
 ```json
 {
   "success": true,
@@ -153,7 +156,6 @@ Allow your mobile apps to check for new versions automatically on startup.
   }
 }
 ```
-
 
 ## Notifications Setup
 

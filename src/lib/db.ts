@@ -5,12 +5,15 @@ import fs from "fs";
 import * as schema from "./schema";
 import bcrypt from "bcryptjs";
 
-const dbPath = path.join(process.cwd(), "ota.db");
+// Ensure data directory is exist
+fs.mkdirSync(path.join(process.cwd(), "data"), { recursive: true });
+
+const dbPath = path.join(process.cwd(), "data/ota.db");
 const sqlite = new Database(dbPath);
 sqlite.pragma("foreign_keys = ON");
 
 // Ensure uploads directory exists
-const uploadsDir = path.join(process.cwd(), "uploads");
+const uploadsDir = path.join(process.cwd(), "data/uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }

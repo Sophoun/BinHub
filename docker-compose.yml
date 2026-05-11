@@ -1,9 +1,8 @@
 services:
   binhub:
-    image: Sophoun/BinHub:latest
+    image: sophoun/binhub:latest
     ports:
       - "3000:3000"
     volumes:
-      - ./ota.db:/app/ota.db
-      - ./uploads:/app/uploads
+      - ./data:/app/data
     restart: always
