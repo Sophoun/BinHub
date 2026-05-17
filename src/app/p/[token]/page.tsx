@@ -126,6 +126,7 @@ export default function PublicSharePage() {
   
   // Direct download link for APK/IPA
   const downloadUrl = `/api/public/download?token=${token}&password=${encodeURIComponent(password)}`;
+  const originalDownloadUrl = version.original_file_path ? `${downloadUrl}&type=original` : null;
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/30 text-foreground transition-colors duration-300">
@@ -138,7 +139,7 @@ export default function PublicSharePage() {
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-lg space-y-8 rounded-2xl border bg-card p-8 shadow-xl animate-in fade-in zoom-in-95 duration-300">
+        <div className="w-full max-lg space-y-8 rounded-2xl border bg-card p-8 shadow-xl animate-in fade-in zoom-in-95 duration-300">
           <div className="flex flex-col items-center text-center">
             <div className="relative mb-6">
               <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-muted shadow-inner overflow-hidden border-4 border-card">
@@ -191,6 +192,16 @@ export default function PublicSharePage() {
               </a>
             )}
             
+            {originalDownloadUrl && (
+              <a 
+                href={originalDownloadUrl}
+                className="flex h-10 items-center justify-center text-sm font-medium text-primary hover:underline transition-colors border border-primary/20 rounded-lg bg-primary/5"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download Original AAB Bundle
+              </a>
+            )}
+
             {isIos && (
               <a 
                 href={downloadUrl}

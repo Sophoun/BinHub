@@ -1,6 +1,6 @@
 # BinHub
 
-A secure, self-hosted Over-The-Air (OTA) distribution platform for mobile applications (APK and IPA). Designed for development teams to easily distribute builds to QA testers and stakeholders.
+A secure, self-hosted Over-The-Air (OTA) distribution platform for mobile applications (APK, AAB, and IPA). Designed for development teams to easily distribute builds to QA testers and stakeholders.
 
 ## Features
 

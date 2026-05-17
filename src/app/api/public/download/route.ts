@@ -11,6 +11,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const token = searchParams.get('token');
   const password = searchParams.get('password');
+  const type = searchParams.get('type'); // 'original' or 'processed' (default)
 
   if (!token) {
     return new NextResponse('Missing token', { status: 400 });
@@ -62,7 +63,9 @@ export async function GET(request: Request) {
     return new NextResponse('App not found', { status: 404 });
   }
 
-  const filePath = path.join(process.cwd(), 'uploads', app.id.toString(), version.file_path);
+  const useOriginal = type === 'original' && version.original_file_path;
+  const fileNameToDownload = useOriginal ? version.original_file_path! : version.file_path;
+  const filePath = path.join(process.cwd(), 'uploads', app.id.toString(), fileNameToDownload);
   
   if (!fs.existsSync(filePath)) {
     return new NextResponse('File not found on server', { status: 404 });
@@ -77,11 +80,12 @@ export async function GET(request: Request) {
     user_agent: request.headers.get('user-agent') || 'unknown',
   });
 
-  const extension = path.extname(version.file_path);
+  const extension = path.extname(fileNameToDownload);
   const safeName = app.name.replace(/[^a-z0-9]/gi, '_');
   const safeVersion = version.version_number.replace(/[^a-z0-9.]/gi, '_');
   const safeBuild = version.build_number ? `-${version.build_number}` : '';
-  const customFilename = `${safeName}-${safeVersion}${safeBuild}${extension}`;
+  const suffix = useOriginal ? '-original' : '';
+  const customFilename = `${safeName}-${safeVersion}${safeBuild}${suffix}${extension}`;
 
   return new NextResponse(fileBuffer, {
     headers: {

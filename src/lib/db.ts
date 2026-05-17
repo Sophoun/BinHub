@@ -23,7 +23,7 @@ export const db = drizzle(sqlite, { schema });
 // Initialize tables and default admin user
 try {
   // Create tables if they don't exist (Drizzle push alternative for zero-config)
-  sqlite.exec(`
+  sqlite.exec( `
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL UNIQUE,
@@ -52,6 +52,7 @@ try {
       version_number TEXT NOT NULL,
       build_number TEXT,
       file_path TEXT NOT NULL,
+      original_file_path TEXT,
       manifest_path TEXT,
       changelog TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -109,14 +110,23 @@ try {
       value TEXT NOT NULL,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
-  `);
+   `);
+
+  // Ensure new columns exist for existing databases
+  try {
+    sqlite.exec("ALTER TABLE versions ADD COLUMN original_file_path TEXT");
+    console.log("Migration: Added original_file_path to versions table");
+  } catch (e: any) {
+    if (!e.message.includes("duplicate column name")) {
+      // console.warn("Migration status:", e.message);
+    }
+  }
 
   const userCount = sqlite
     .prepare("SELECT COUNT(*) as count FROM users")
     .get() as { count: number };
 
   if (userCount.count === 0) {
-    // Generate sync hash for the setup phase to avoid async/await issues at the module level
     const defaultPasswordHash = bcrypt.hashSync("admin123", 10);
     sqlite
       .prepare(
@@ -131,5 +141,4 @@ try {
 
 export default db;
 
-// Re-export types for backward compatibility with other files
 export type { User, App, Version, UserApp } from "./schema";

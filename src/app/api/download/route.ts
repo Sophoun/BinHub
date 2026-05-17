@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { getSession } from '@/src/lib/auth';
 import { readFile } from 'fs/promises';
 import path from 'path';
+import fs from 'fs';
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -14,6 +15,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const versionIdStr = searchParams.get('versionId');
+  const type = searchParams.get('type'); // 'original' or 'processed'
 
   if (!versionIdStr) {
     return NextResponse.json({ error: 'Missing versionId' }, { status: 400 });
@@ -64,16 +66,24 @@ export async function GET(request: Request) {
     console.error('Failed to log download:', e);
   }
 
-  const filePath = path.join(process.cwd(), 'uploads', version.app_id.toString(), version.file_path);
+  const useOriginal = type === 'original' && version.original_file_path;
+  const fileNameToDownload = useOriginal ? version.original_file_path! : version.file_path;
+  const filePath = path.join(process.cwd(), 'uploads', version.app_id.toString(), fileNameToDownload);
+  
+  if (!fs.existsSync(filePath)) {
+    return NextResponse.json({ error: 'File not found on server' }, { status: 404 });
+  }
+
   const fileBuffer = await readFile(filePath);
 
   // Construct the new filename: AppName-Version-BuildNumber.extension
-  const extension = path.extname(version.file_path);
+  const extension = path.extname(fileNameToDownload);
   const safeAppName = app.name.replace(/[^a-z0-9]/gi, '_');
   const safeVersion = version.version_number.replace(/[^a-z0-9.]/gi, '_');
   const safeBuild = (version.build_number || '1').replace(/[^a-z0-9]/gi, '_');
+  const suffix = useOriginal ? '-original' : '';
   
-  const customFilename = `${safeAppName}-${safeVersion}-${safeBuild}${extension}`;
+  const customFilename = `${safeAppName}-${safeVersion}-${safeBuild}${suffix}${extension}`;
 
   return new NextResponse(fileBuffer, {
     headers: {
@@ -82,4 +92,3 @@ export async function GET(request: Request) {
     },
   });
 }
-

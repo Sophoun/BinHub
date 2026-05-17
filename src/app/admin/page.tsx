@@ -79,6 +79,8 @@ interface Version {
   build_number?: string;
   changelog?: string;
   created_at: string;
+  file_path: string;
+  original_file_path?: string;
 }
 
 export default function AdminDashboard() {
@@ -690,7 +692,7 @@ function AddAppModal({ onClose, refresh }: { onClose: () => void, refresh: () =>
             value={platform} 
             onChange={(e) => setPlatform(e.target.value as 'android' | 'ios')}
           >
-            <option value="android">Android (APK)</option>
+            <option value="android">Android (APK/AAB)</option>
             <option value="ios">iOS (IPA)</option>
           </select>
         </FormItem>
@@ -764,7 +766,7 @@ function EditAppModal({ app, onClose, refresh }: { app: App, onClose: () => void
             value={platform} 
             onChange={(e) => setPlatform(e.target.value as 'android' | 'ios')}
           >
-            <option value="android">Android (APK)</option>
+            <option value="android">Android (APK/AAB)</option>
             <option value="ios">iOS (IPA)</option>
           </select>
         </FormItem>
@@ -858,7 +860,7 @@ function UploadModal({ appId, onClose, refresh }: { appId: number, onClose: () =
   return (
     <Modal title="Upload New Version" onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <FormItem label="Binary (APK/IPA)">
+        <FormItem label="Binary (APK/AAB/IPA)">
           <Input required type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
         </FormItem>
         <div className="grid grid-cols-2 gap-4">
@@ -870,7 +872,7 @@ function UploadModal({ appId, onClose, refresh }: { appId: number, onClose: () =
           </FormItem>
         </div>
         <p className="text-[10px] text-muted-foreground -mt-2">
-          Leave version/build empty to automatically extract from the file.
+          Note: .aab files will be automatically converted to universal .apk.
         </p>
         <FormItem label="Release Notes">
           <textarea 
@@ -883,7 +885,7 @@ function UploadModal({ appId, onClose, refresh }: { appId: number, onClose: () =
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4">
           <button type="button" onClick={onClose} className="mt-2 inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground sm:mt-0">Cancel</button>
           <button type="submit" disabled={uploading} className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50">
-            {uploading ? 'Uploading & Parsing...' : 'Upload Version'}
+            {uploading ? 'Uploading & Processing...' : 'Upload Version'}
           </button>
         </div>
       </form>
@@ -1012,7 +1014,7 @@ function AdminVersionModal({ app, onClose, refreshApps, onManagePublicLinks }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-3xl rounded-lg border bg-card p-6 shadow-lg sm:p-8 animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+      <div className="relative w-full max-w-4xl rounded-lg border bg-card p-6 shadow-lg sm:p-8 animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
         <div className="flex flex-col space-y-1.5 mb-6">
           <h2 className="text-xl font-semibold leading-none tracking-tight">Manage Versions: {app.name}</h2>
           <p className="text-sm text-muted-foreground">View and delete existing builds.</p>
@@ -1047,6 +1049,23 @@ function AdminVersionModal({ app, onClose, refreshApps, onManagePublicLinks }: {
                       </td>
                       <td className="p-3 px-4 align-middle text-right">
                         <div className="flex items-center justify-end gap-2">
+                          <a
+                            href={`/api/download?versionId=${v.id}`}
+                            className="inline-flex h-8 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+                          >
+                            <Download className="mr-1 h-3.5 w-3.5" />
+                            APK/IPA
+                          </a>
+                          {v.original_file_path && (
+                            <a
+                              href={`/api/download?versionId=${v.id}&type=original`}
+                              className="inline-flex h-8 items-center justify-center rounded-md border border-primary/30 bg-primary/5 px-3 text-xs font-medium text-primary shadow-sm transition-colors hover:bg-primary/10"
+                              title="Download original uploaded file (e.g. AAB)"
+                            >
+                              <Download className="mr-1 h-3.5 w-3.5" />
+                              AAB
+                            </a>
+                          )}
                           <button
                             onClick={() => onManagePublicLinks(v)}
                             className="inline-flex h-8 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"

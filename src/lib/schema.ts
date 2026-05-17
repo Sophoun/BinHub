@@ -33,6 +33,7 @@ export const versions = sqliteTable('versions', {
   version_number: text('version_number').notNull(),
   build_number: text('build_number'),
   file_path: text('file_path').notNull(),
+  original_file_path: text('original_file_path'),
   manifest_path: text('manifest_path'),
   changelog: text('changelog'),
   created_at: text('created_at').default(sql`(CURRENT_TIMESTAMP)`),
