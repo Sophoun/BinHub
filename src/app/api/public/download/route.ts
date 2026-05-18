@@ -115,7 +115,7 @@ export async function GET(request: Request) {
   // Use ReadableStream to wrap the Node.js ReadStream for Next.js response
   const stream = new ReadableStream({
     start(controller) {
-      fileStream.on("data", (chunk) => controller.enqueue(new Uint8Array(chunk)));
+      fileStream.on("data", (chunk) => controller.enqueue(new Uint8Array(Buffer.from(chunk))));
       fileStream.on("end", () => controller.close());
       fileStream.on("error", (err) => controller.error(err));
     },

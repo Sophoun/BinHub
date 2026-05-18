@@ -1,18 +1,33 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { Download, LogOut, Smartphone, Package, Calendar, Clock, History, QrCode } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { getMyAppsAction, logoutAction, getAppVersionsAction } from '@/src/lib/actions';
-import { ThemeToggle } from '@/src/components/theme-toggle';
-import { copyToClipboard } from '@/src/lib/utils';
-import QRCode from 'qrcode';
+import { useState, useEffect, useCallback } from "react";
+import {
+  Download,
+  LogOut,
+  Smartphone,
+  Package,
+  Calendar,
+  Clock,
+  History,
+  QrCode,
+  Check,
+  Copy,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  getMyAppsAction,
+  logoutAction,
+  getAppVersionsAction,
+} from "@/src/lib/actions";
+import { ThemeToggle } from "@/src/components/theme-toggle";
+import { copyToClipboard } from "@/src/lib/utils";
+import QRCode from "qrcode";
 
 interface AppWithVersion {
   id: number;
   name: string;
   package_name: string;
-  platform: 'android' | 'ios';
+  platform: "android" | "ios";
   icon_path?: string | null;
   version_id?: number | null;
   version_number?: string | null;
@@ -32,7 +47,8 @@ interface Version {
 export default function UserDashboard() {
   const [apps, setApps] = useState<AppWithVersion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedAppHistory, setSelectedAppHistory] = useState<AppWithVersion | null>(null);
+  const [selectedAppHistory, setSelectedAppHistory] =
+    useState<AppWithVersion | null>(null);
   const [showQRApp, setShowQRApp] = useState<AppWithVersion | null>(null);
   const router = useRouter();
 
@@ -47,22 +63,25 @@ export default function UserDashboard() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchApps();
   }, [fetchApps]);
 
   const handleLogout = async () => {
     await logoutAction();
-    router.push('/login');
+    router.push("/login");
   };
 
-  const handleInstall = (platform: 'android' | 'ios', versionId: number) => {
-    if (platform === 'android') {
+  const handleInstall = (platform: "android" | "ios", versionId: number) => {
+    if (platform === "android") {
+      // eslint-disable-next-line react-hooks/immutability
       window.location.href = `/api/download?versionId=${versionId}`;
     } else {
       const protocol = window.location.protocol;
       const host = window.location.host;
       const manifestUrl = `${protocol}//${host}/api/manifest?versionId=${versionId}`;
       const itmsUrl = `itms-services://?action=download-manifest&url=${encodeURIComponent(manifestUrl)}`;
+      // eslint-disable-next-line react-hooks/immutability
       window.location.href = itmsUrl;
     }
   };
@@ -91,7 +110,9 @@ export default function UserDashboard() {
       <main className="flex-1 bg-muted/20 pb-12 pt-10">
         <div className="mx-auto max-w-7xl px-6">
           <div className="mb-8 space-y-1">
-            <h2 className="text-2xl font-semibold tracking-tight">Applications</h2>
+            <h2 className="text-2xl font-semibold tracking-tight">
+              Applications
+            </h2>
             <p className="text-sm text-muted-foreground">
               Available builds for your account
             </p>
@@ -100,7 +121,10 @@ export default function UserDashboard() {
           {loading ? (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-48 rounded-lg border bg-card animate-pulse" />
+                <div
+                  key={i}
+                  className="h-48 rounded-lg border bg-card animate-pulse"
+                />
               ))}
             </div>
           ) : apps.length === 0 ? (
@@ -114,29 +138,41 @@ export default function UserDashboard() {
           ) : (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {apps.map((app) => (
-                <div key={app.id} className="group relative flex flex-col rounded-lg border bg-card p-6 shadow-sm transition-all hover:shadow-md hover:border-primary/20">
+                <div
+                  key={app.id}
+                  className="group relative flex flex-col rounded-lg border bg-card p-6 shadow-sm transition-all hover:shadow-md hover:border-primary/20"
+                >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-md bg-muted overflow-hidden transition-colors group-hover:shadow-sm">
                       {app.icon_path ? (
-                        <img 
-                          src={`/api/icon?appId=${app.id}&t=${new Date().getTime()}`} 
-                          alt={app.name} 
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={`/api/icon?appId=${app.id}&t=${new Date().getTime()}`}
+                          alt={app.name}
                           className="h-full w-full object-cover"
                         />
                       ) : (
                         <Package className="h-6 w-6 text-muted-foreground" />
                       )}
                     </div>
-                    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors ${
-                      app.platform === 'ios' ? 'border-transparent bg-primary text-primary-foreground' : 'border-transparent bg-secondary text-secondary-foreground'
-                    }`}>
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors ${
+                        app.platform === "ios"
+                          ? "border-transparent bg-primary text-primary-foreground"
+                          : "border-transparent bg-secondary text-secondary-foreground"
+                      }`}
+                    >
                       {app.platform.toUpperCase()}
                     </span>
                   </div>
 
                   <div className="flex-1 space-y-1.5 mb-6">
-                    <h3 className="font-semibold leading-none tracking-tight">{app.name}</h3>
-                    <p className="text-xs text-muted-foreground font-mono">{app.package_name}</p>
+                    <h3 className="font-semibold leading-none tracking-tight">
+                      {app.name}
+                    </h3>
+                    <p className="text-xs text-muted-foreground font-mono">
+                      {app.package_name}
+                    </p>
                   </div>
 
                   {app.version_id ? (
@@ -144,11 +180,17 @@ export default function UserDashboard() {
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div className="flex items-center gap-1.5 text-muted-foreground">
                           <Clock className="h-3.5 w-3.5" />
-                          <span>v{app.version_number} ({app.build_number || '1'})</span>
+                          <span>
+                            v{app.version_number} ({app.build_number || "1"})
+                          </span>
                         </div>
                         <div className="flex items-center gap-1.5 text-muted-foreground justify-end">
                           <Calendar className="h-3.5 w-3.5" />
-                          <span>{app.version_date ? new Date(app.version_date).toLocaleDateString() : 'N/A'}</span>
+                          <span>
+                            {app.version_date
+                              ? new Date(app.version_date).toLocaleDateString()
+                              : "N/A"}
+                          </span>
                         </div>
                       </div>
 
@@ -160,11 +202,13 @@ export default function UserDashboard() {
 
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => handleInstall(app.platform, app.version_id!)}
+                          onClick={() =>
+                            handleInstall(app.platform, app.version_id!)
+                          }
                           className="flex-1 inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         >
                           <Download className="mr-2 h-4 w-4" />
-                          {app.platform === 'ios' ? 'Install' : 'Download'}
+                          {app.platform === "ios" ? "Install" : "Download"}
                         </button>
                         <button
                           onClick={() => setShowQRApp(app)}
@@ -195,18 +239,17 @@ export default function UserDashboard() {
       </main>
 
       {selectedAppHistory && (
-        <VersionHistoryModal 
-          app={selectedAppHistory} 
-          onClose={() => setSelectedAppHistory(null)} 
-          onInstall={(versionId) => handleInstall(selectedAppHistory.platform, versionId)}
+        <VersionHistoryModal
+          app={selectedAppHistory}
+          onClose={() => setSelectedAppHistory(null)}
+          onInstall={(versionId) =>
+            handleInstall(selectedAppHistory.platform, versionId)
+          }
         />
       )}
 
       {showQRApp && (
-        <QRCodeModal 
-          app={showQRApp} 
-          onClose={() => setShowQRApp(null)} 
-        />
+        <QRCodeModal app={showQRApp} onClose={() => setShowQRApp(null)} />
       )}
 
       <footer className="border-t py-6 bg-card">
@@ -218,7 +261,15 @@ export default function UserDashboard() {
   );
 }
 
-function VersionHistoryModal({ app, onClose, onInstall }: { app: AppWithVersion, onClose: () => void, onInstall: (versionId: number) => void }) {
+function VersionHistoryModal({
+  app,
+  onClose,
+  onInstall,
+}: {
+  app: AppWithVersion;
+  onClose: () => void;
+  onInstall: (versionId: number) => void;
+}) {
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -239,23 +290,39 @@ function VersionHistoryModal({ app, onClose, onInstall }: { app: AppWithVersion,
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
       <div className="relative w-full max-w-2xl rounded-lg border bg-card p-6 shadow-lg sm:p-8 animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
         <div className="flex flex-col space-y-1.5 mb-6">
-          <h2 className="text-xl font-semibold leading-none tracking-tight">{app.name} History</h2>
-          <p className="text-sm text-muted-foreground">Download previous versions of this application</p>
+          <h2 className="text-xl font-semibold leading-none tracking-tight">
+            {app.name} History
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Download previous versions of this application
+          </p>
         </div>
 
         <div className="flex-1 overflow-y-auto pr-2 -mr-2 space-y-4">
           {loading ? (
             <div className="space-y-4">
-              {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-lg bg-muted animate-pulse" />)}
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="h-24 rounded-lg bg-muted animate-pulse"
+                />
+              ))}
             </div>
           ) : versions.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">No versions found.</div>
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              No versions found.
+            </div>
           ) : (
             versions.map((v) => (
-              <div key={v.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-lg border bg-background hover:bg-muted/30 transition-colors">
+              <div
+                key={v.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-lg border bg-background hover:bg-muted/30 transition-colors"
+              >
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm">v{v.version_number}</span>
+                    <span className="font-semibold text-sm">
+                      v{v.version_number}
+                    </span>
                     {v.build_number && (
                       <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">
                         Build {v.build_number}
@@ -264,7 +331,9 @@ function VersionHistoryModal({ app, onClose, onInstall }: { app: AppWithVersion,
                   </div>
                   <div className="text-xs text-muted-foreground flex items-center gap-1.5">
                     <Calendar className="h-3 w-3" />
-                    {v.created_at ? new Date(v.created_at).toLocaleString() : 'N/A'}
+                    {v.created_at
+                      ? new Date(v.created_at).toLocaleString()
+                      : "N/A"}
                   </div>
                   {v.changelog && (
                     <div className="text-xs text-muted-foreground mt-2 italic border-l-2 pl-2 line-clamp-2">
@@ -277,28 +346,46 @@ function VersionHistoryModal({ app, onClose, onInstall }: { app: AppWithVersion,
                   className="shrink-0 inline-flex h-8 items-center justify-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
                   <Download className="mr-2 h-3.5 w-3.5" />
-                  {app.platform === 'ios' ? 'Install' : 'Download'}
+                  {app.platform === "ios" ? "Install" : "Download"}
                 </button>
               </div>
             ))
           )}
         </div>
 
-        <button 
+        <button
           onClick={onClose}
           className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
         >
           <span className="sr-only">Close</span>
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
         </button>
       </div>
     </div>
   );
 }
 
-function QRCodeModal({ app, onClose }: { app: AppWithVersion, onClose: () => void }) {
-  const [qrDataUrl, setQrDataUrl] = useState<string>('');
-  const [installUrl, setInstallUrl] = useState<string>('');
+function QRCodeModal({
+  app,
+  onClose,
+}: {
+  app: AppWithVersion;
+  onClose: () => void;
+}) {
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const [installUrl, setInstallUrl] = useState<string>("");
   const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
@@ -306,9 +393,9 @@ function QRCodeModal({ app, onClose }: { app: AppWithVersion, onClose: () => voi
       try {
         const protocol = window.location.protocol;
         const host = window.location.host;
-        let url = '';
+        let url = "";
 
-        if (app.platform === 'android') {
+        if (app.platform === "android") {
           url = `${protocol}//${host}/api/download?versionId=${app.version_id}`;
         } else {
           const manifestUrl = `${protocol}//${host}/api/manifest?versionId=${app.version_id}`;
@@ -320,8 +407,8 @@ function QRCodeModal({ app, onClose }: { app: AppWithVersion, onClose: () => voi
           width: 300,
           margin: 2,
           color: {
-            dark: '#000000',
-            light: '#ffffff',
+            dark: "#000000",
+            light: "#ffffff",
           },
         });
         setQrDataUrl(dataUrl);
@@ -347,13 +434,22 @@ function QRCodeModal({ app, onClose }: { app: AppWithVersion, onClose: () => voi
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
       <div className="relative w-full max-w-sm rounded-lg border bg-card p-6 shadow-lg sm:p-8 animate-in zoom-in-95 duration-200 flex flex-col items-center">
         <div className="flex flex-col space-y-1.5 text-center mb-6">
-          <h2 className="text-xl font-semibold leading-none tracking-tight">Scan to {app.platform === 'ios' ? 'Install' : 'Download'}</h2>
-          <p className="text-sm text-muted-foreground">{app.name} v{app.version_number}</p>
+          <h2 className="text-xl font-semibold leading-none tracking-tight">
+            Scan to {app.platform === "ios" ? "Install" : "Download"}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {app.name} v{app.version_number}
+          </p>
         </div>
 
         <div className="bg-white p-4 rounded-lg shadow-inner mb-6">
           {qrDataUrl ? (
-            <img src={qrDataUrl} alt="QR Code" className="h-48 w-48 sm:h-64 sm:w-64" />
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={qrDataUrl}
+              alt="QR Code"
+              className="h-48 w-48 sm:h-64 sm:w-64"
+            />
           ) : (
             <div className="h-48 w-48 sm:h-64 sm:w-64 flex items-center justify-center">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
@@ -364,7 +460,7 @@ function QRCodeModal({ app, onClose }: { app: AppWithVersion, onClose: () => voi
         <div className="w-full space-y-3">
           <button
             onClick={handleCopy}
-            className={`w-full inline-flex h-9 items-center justify-center rounded-md border text-sm font-medium transition-colors ${isCopied ? 'bg-green-50 text-green-600 border-green-200' : 'bg-background hover:bg-accent hover:text-accent-foreground'}`}
+            className={`w-full inline-flex h-9 items-center justify-center rounded-md border text-sm font-medium transition-colors ${isCopied ? "bg-green-50 text-green-600 border-green-200" : "bg-background hover:bg-accent hover:text-accent-foreground"}`}
           >
             {isCopied ? (
               <>
@@ -378,18 +474,32 @@ function QRCodeModal({ app, onClose }: { app: AppWithVersion, onClose: () => voi
               </>
             )}
           </button>
-          
+
           <p className="text-xs text-center text-muted-foreground">
-            Point your camera at the QR code to quickly {app.platform === 'ios' ? 'install' : 'download'} this build on your device.
+            Point your camera at the QR code to quickly{" "}
+            {app.platform === "ios" ? "install" : "download"} this build on your
+            device.
           </p>
         </div>
 
-        <button 
+        <button
           onClick={onClose}
           className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
         >
           <span className="sr-only">Close</span>
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
         </button>
       </div>
     </div>
