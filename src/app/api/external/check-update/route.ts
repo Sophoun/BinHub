@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import db from "@/src/lib/db";
 import { apps, versions, api_keys, users } from "@/src/lib/schema";
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
     }
 
     // 2. Find the Application
-    let app = null;
+    let app: any = null;
 
     if (appIdStr) {
       const appId = parseInt(appIdStr, 10);
