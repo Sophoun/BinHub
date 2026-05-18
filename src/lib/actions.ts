@@ -221,7 +221,11 @@ export async function createAppAction(formData: FormData) {
   if (icon) {
     const bytes = await icon.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const uploadDir = path.join(process.cwd(), "uploads", appId.toString());
+    const uploadDir = path.join(
+      process.cwd(),
+      "data/uploads",
+      appId.toString(),
+    );
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -261,7 +265,7 @@ export async function updateAppAction(id: number, formData: FormData) {
   if (icon && icon.size > 0) {
     const bytes = await icon.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const uploadDir = path.join(process.cwd(), "uploads", id.toString());
+    const uploadDir = path.join(process.cwd(), "data/uploads", id.toString());
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -280,7 +284,7 @@ export async function deleteAppAction(appId: number) {
     throw new Error("Unauthorized");
   }
 
-  const uploadDir = path.join(process.cwd(), "uploads", appId.toString());
+  const uploadDir = path.join(process.cwd(), "data/uploads", appId.toString());
   if (fs.existsSync(uploadDir)) {
     fs.rmSync(uploadDir, { recursive: true, force: true });
   }
@@ -316,7 +320,7 @@ export async function deleteVersionAction(versionId: number) {
   if (version) {
     const uploadDir = path.join(
       process.cwd(),
-      "uploads",
+      "data/uploads",
       version.app_id.toString(),
     );
 
@@ -732,7 +736,11 @@ export async function enforceRetentionPolicy(appId: number) {
   if (appVersions.length > retentionCount) {
     const toDelete = appVersions.slice(retentionCount);
     for (const v of toDelete) {
-      const uploadDir = path.join(process.cwd(), "uploads", appId.toString());
+      const uploadDir = path.join(
+        process.cwd(),
+        "data/uploads",
+        appId.toString(),
+      );
 
       // Delete main file
       const filePath = path.join(uploadDir, v.file_path);

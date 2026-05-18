@@ -38,9 +38,6 @@ COPY --from=deps /app/bin/bundletool.jar ./bin/bundletool.jar
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Create uploads directory and set permissions
-RUN mkdir -p uploads && chown nextjs:nodejs uploads
-
 USER nextjs
 
 EXPOSE 3000

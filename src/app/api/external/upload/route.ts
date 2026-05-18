@@ -76,7 +76,11 @@ export async function POST(request: Request) {
 
     const fileExt = processed.fileExt;
     const fileName = `${uuidv4()}.${fileExt}`;
-    const uploadDir = path.join(process.cwd(), "uploads", appId.toString());
+    const uploadDir = path.join(
+      process.cwd(),
+      "data/uploads",
+      appId.toString(),
+    );
 
     if (!fs.existsSync(uploadDir)) {
       await mkdir(uploadDir, { recursive: true });
@@ -89,7 +93,7 @@ export async function POST(request: Request) {
     await unlink(processed.filePath);
 
     // Save original file if it was converted (e.g., .aab)
-    let originalFileName = null;
+    let originalFileName: string | null = null;
     if (processed.originalFilePath) {
       const origExt = path.extname(processed.originalFilePath).replace(".", "");
       originalFileName = `${uuidv4()}.${origExt}`;
@@ -167,7 +171,7 @@ export async function POST(request: Request) {
       }
     }
 
-    let manifestPath = null;
+    let manifestPath: string | null = null;
     if (app.platform === "ios" && fileExt === "ipa") {
       const manifestName = `${uuidv4()}.plist`;
       const manifestContent = generateIosManifest(

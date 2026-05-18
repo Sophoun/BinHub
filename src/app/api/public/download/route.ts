@@ -72,7 +72,7 @@ export async function GET(request: Request) {
     : version.file_path;
   const filePath = path.join(
     process.cwd(),
-    "uploads",
+    "data/uploads",
     app.id.toString(),
     fileNameToDownload,
   );
