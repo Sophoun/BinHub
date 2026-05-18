@@ -17,7 +17,7 @@ import {
   webhooks,
   settings,
 } from "./schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, or } from "drizzle-orm";
 import { getSession, login, logout } from "./auth";
 import fs from "fs";
 import path from "path";
@@ -174,9 +174,11 @@ export async function getMyAppsAction() {
       version_date: versions.created_at,
     })
     .from(apps)
-    .innerJoin(user_apps, eq(apps.id, user_apps.app_id))
+    .leftJoin(user_apps, eq(apps.id, user_apps.app_id))
+    .leftJoin(group_apps, eq(apps.id, group_apps.app_id))
+    .leftJoin(user_groups, eq(group_apps.group_id, user_groups.group_id))
     .leftJoin(versions, eq(apps.id, versions.app_id))
-    .where(eq(user_apps.user_id, userId))
+    .where(or(eq(user_apps.user_id, userId), eq(user_groups.user_id, userId)))
     .orderBy(desc(versions.created_at))
     .all();
 
