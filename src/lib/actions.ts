@@ -1,8 +1,22 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use server";
 
 import { revalidatePath } from "next/cache";
 import db from "./db";
-import { users, apps, versions, user_apps, download_logs, groups, user_groups, group_apps, api_keys, public_links, webhooks, settings } from "./schema";
+import {
+  users,
+  apps,
+  versions,
+  user_apps,
+  download_logs,
+  groups,
+  user_groups,
+  group_apps,
+  api_keys,
+  public_links,
+  webhooks,
+  settings,
+} from "./schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { getSession, login, logout } from "./auth";
 import fs from "fs";
@@ -15,7 +29,12 @@ export async function loginAction(prevState: any, formData: FormData) {
   const username = formData.get("username") as string;
   const password = formData.get("password") as string;
 
-  const userResult = await db.select().from(users).where(eq(users.username, username)).limit(1).all();
+  const userResult = await db
+    .select()
+    .from(users)
+    .where(eq(users.username, username))
+    .limit(1)
+    .all();
   const user = userResult[0];
 
   if (user && (await bcrypt.compare(password, user.password_hash))) {
@@ -37,10 +56,17 @@ export async function getUsersAction() {
   if (!session || session.user.role !== "admin") {
     throw new Error("Unauthorized");
   }
-  return await db.select({ id: users.id, username: users.username, role: users.role }).from(users).all();
+  return await db
+    .select({ id: users.id, username: users.username, role: users.role })
+    .from(users)
+    .all();
 }
 
-export async function createUserAction(data: { username: string; password_hash: string; role: "admin" | "user" }) {
+export async function createUserAction(data: {
+  username: string;
+  password_hash: string;
+  role: "admin" | "user";
+}) {
   const session = await getSession();
   if (!session || session.user.role !== "admin") {
     throw new Error("Unauthorized");
@@ -68,13 +94,19 @@ export async function deleteUserAction(id: number) {
   return { success: true };
 }
 
-export async function changePasswordAction(userId: number, newPassword: string) {
+export async function changePasswordAction(
+  userId: number,
+  newPassword: string,
+) {
   const session = await getSession();
   if (!session || session.user.role !== "admin") {
     throw new Error("Unauthorized");
   }
   const password_hash = await bcrypt.hash(newPassword, 10);
-  await db.update(users).set({ password_hash, updated_at: new Date().toISOString() }).where(eq(users.id, userId));
+  await db
+    .update(users)
+    .set({ password_hash, updated_at: new Date().toISOString() })
+    .where(eq(users.id, userId));
   return { success: true };
 }
 
@@ -84,7 +116,26 @@ export async function getAppsAction() {
   if (!session) throw new Error("Unauthorized");
 
   if (session.user.role === "admin") {
-    const data = await db.select({
+    const data = await db
+      .select({
+        id: apps.id,
+        name: apps.name,
+        package_name: apps.package_name,
+        platform: apps.platform,
+        icon_path: apps.icon_path,
+        created_at: apps.created_at,
+        updated_at: apps.updated_at,
+        latest_version: sql<string>`(SELECT version_number FROM versions WHERE app_id = apps.id ORDER BY created_at DESC LIMIT 1)`,
+        download_count: sql<number>`(SELECT COUNT(*) FROM download_logs dl JOIN versions v ON dl.version_id = v.id WHERE v.app_id = apps.id)`,
+      })
+      .from(apps)
+      .all();
+    return data;
+  }
+
+  // Regular user: Only assigned apps
+  const data = await db
+    .select({
       id: apps.id,
       name: apps.name,
       package_name: apps.package_name,
@@ -93,23 +144,9 @@ export async function getAppsAction() {
       created_at: apps.created_at,
       updated_at: apps.updated_at,
       latest_version: sql<string>`(SELECT version_number FROM versions WHERE app_id = apps.id ORDER BY created_at DESC LIMIT 1)`,
-      download_count: sql<number>`(SELECT COUNT(*) FROM download_logs dl JOIN versions v ON dl.version_id = v.id WHERE v.app_id = apps.id)`
-    }).from(apps).all();
-    return data;
-  }
-
-  // Regular user: Only assigned apps
-  const data = await db.select({
-    id: apps.id,
-    name: apps.name,
-    package_name: apps.package_name,
-    platform: apps.platform,
-    icon_path: apps.icon_path,
-    created_at: apps.created_at,
-    updated_at: apps.updated_at,
-    latest_version: sql<string>`(SELECT version_number FROM versions WHERE app_id = apps.id ORDER BY created_at DESC LIMIT 1)`,
-    download_count: sql<number>`(SELECT COUNT(*) FROM download_logs dl JOIN versions v ON dl.version_id = v.id WHERE v.app_id = apps.id)`
-  }).from(apps)
+      download_count: sql<number>`(SELECT COUNT(*) FROM download_logs dl JOIN versions v ON dl.version_id = v.id WHERE v.app_id = apps.id)`,
+    })
+    .from(apps)
     .innerJoin(user_apps, eq(apps.id, user_apps.app_id))
     .where(eq(user_apps.user_id, session.user.id))
     .all();
@@ -123,24 +160,25 @@ export async function getMyAppsAction() {
 
   const userId = session.user.id;
 
-  const userAppsResult = await db.select({
-    id: apps.id,
-    name: apps.name,
-    package_name: apps.package_name,
-    platform: apps.platform,
-    icon_path: apps.icon_path,
-    version_id: versions.id,
-    version_number: versions.version_number,
-    build_number: versions.build_number,
-    changelog: versions.changelog,
-    version_date: versions.created_at,
-  })
-  .from(apps)
-  .innerJoin(user_apps, eq(apps.id, user_apps.app_id))
-  .leftJoin(versions, eq(apps.id, versions.app_id))
-  .where(eq(user_apps.user_id, userId))
-  .orderBy(desc(versions.created_at))
-  .all();
+  const userAppsResult = await db
+    .select({
+      id: apps.id,
+      name: apps.name,
+      package_name: apps.package_name,
+      platform: apps.platform,
+      icon_path: apps.icon_path,
+      version_id: versions.id,
+      version_number: versions.version_number,
+      build_number: versions.build_number,
+      changelog: versions.changelog,
+      version_date: versions.created_at,
+    })
+    .from(apps)
+    .innerJoin(user_apps, eq(apps.id, user_apps.app_id))
+    .leftJoin(versions, eq(apps.id, versions.app_id))
+    .where(eq(user_apps.user_id, userId))
+    .orderBy(desc(versions.created_at))
+    .all();
 
   // Deduplicate to show only the latest version per app
   const uniqueApps: any[] = [];
@@ -167,11 +205,14 @@ export async function createAppAction(formData: FormData) {
   const platform = formData.get("platform") as "android" | "ios";
   const icon = formData.get("icon") as File;
 
-  const result = await db.insert(apps).values({
-    name,
-    package_name,
-    platform,
-  }).returning({ id: apps.id });
+  const result = await db
+    .insert(apps)
+    .values({
+      name,
+      package_name,
+      platform,
+    })
+    .returning({ id: apps.id });
 
   const appId = result[0].id;
 
@@ -184,7 +225,10 @@ export async function createAppAction(formData: FormData) {
     }
     const iconPath = "icon.png";
     fs.writeFileSync(path.join(uploadDir, iconPath), buffer);
-    await db.update(apps).set({ icon_path: iconPath }).where(eq(apps.id, appId));
+    await db
+      .update(apps)
+      .set({ icon_path: iconPath })
+      .where(eq(apps.id, appId));
   }
 
   revalidatePath("/admin");
@@ -202,12 +246,15 @@ export async function updateAppAction(id: number, formData: FormData) {
   const platform = formData.get("platform") as "android" | "ios";
   const icon = formData.get("icon") as File;
 
-  await db.update(apps).set({
-    name,
-    package_name,
-    platform,
-    updated_at: new Date().toISOString(),
-  }).where(eq(apps.id, id));
+  await db
+    .update(apps)
+    .set({
+      name,
+      package_name,
+      platform,
+      updated_at: new Date().toISOString(),
+    })
+    .where(eq(apps.id, id));
 
   if (icon && icon.size > 0) {
     const bytes = await icon.arrayBuffer();
@@ -261,12 +308,16 @@ export async function deleteVersionAction(versionId: number) {
   }
 
   const version = await db.query.versions.findFirst({
-    where: eq(versions.id, versionId)
+    where: eq(versions.id, versionId),
   });
 
   if (version) {
-    const uploadDir = path.join(process.cwd(), "uploads", version.app_id.toString());
-    
+    const uploadDir = path.join(
+      process.cwd(),
+      "uploads",
+      version.app_id.toString(),
+    );
+
     // Delete main file
     const filePath = path.join(uploadDir, version.file_path);
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
@@ -295,10 +346,17 @@ export async function getAssignmentsAction(userId: number) {
   if (!session || session.user.role !== "admin") {
     throw new Error("Unauthorized");
   }
-  return await db.select({ app_id: user_apps.app_id }).from(user_apps).where(eq(user_apps.user_id, userId)).all();
+  return await db
+    .select({ app_id: user_apps.app_id })
+    .from(user_apps)
+    .where(eq(user_apps.user_id, userId))
+    .all();
 }
 
-export async function updateAssignmentsAction(userId: number, appIds: number[]) {
+export async function updateAssignmentsAction(
+  userId: number,
+  appIds: number[],
+) {
   const session = await getSession();
   if (!session || session.user.role !== "admin") {
     throw new Error("Unauthorized");
@@ -307,7 +365,9 @@ export async function updateAssignmentsAction(userId: number, appIds: number[]) 
   try {
     await db.delete(user_apps).where(eq(user_apps.user_id, userId));
     if (appIds.length > 0) {
-      await db.insert(user_apps).values(appIds.map((appId) => ({ user_id: userId, app_id: appId })));
+      await db
+        .insert(user_apps)
+        .values(appIds.map((appId) => ({ user_id: userId, app_id: appId })));
     }
     revalidatePath("/admin");
     return { success: true };
@@ -325,7 +385,10 @@ export async function getGroupsAction() {
   return await db.select().from(groups).all();
 }
 
-export async function createGroupAction(data: { name: string; description: string }) {
+export async function createGroupAction(data: {
+  name: string;
+  description: string;
+}) {
   const session = await getSession();
   if (!session || session.user.role !== "admin") {
     throw new Error("Unauthorized");
@@ -354,17 +417,29 @@ export async function getGroupAssignmentsAction(groupId: number) {
   if (!session || session.user.role !== "admin") {
     throw new Error("Unauthorized");
   }
-  
-  const userResults = await db.select({ userId: user_groups.user_id }).from(user_groups).where(eq(user_groups.group_id, groupId)).all();
-  const appResults = await db.select({ appId: group_apps.app_id }).from(group_apps).where(eq(group_apps.group_id, groupId)).all();
-  
+
+  const userResults = await db
+    .select({ userId: user_groups.user_id })
+    .from(user_groups)
+    .where(eq(user_groups.group_id, groupId))
+    .all();
+  const appResults = await db
+    .select({ appId: group_apps.app_id })
+    .from(group_apps)
+    .where(eq(group_apps.group_id, groupId))
+    .all();
+
   return {
-    userIds: userResults.map(r => r.userId),
-    appIds: appResults.map(r => r.appId)
+    userIds: userResults.map((r) => r.userId),
+    appIds: appResults.map((r) => r.appId),
   };
 }
 
-export async function updateGroupAssignmentsAction(groupId: number, userIds: number[], appIds: number[]) {
+export async function updateGroupAssignmentsAction(
+  groupId: number,
+  userIds: number[],
+  appIds: number[],
+) {
   const session = await getSession();
   if (!session || session.user.role !== "admin") {
     throw new Error("Unauthorized");
@@ -374,12 +449,16 @@ export async function updateGroupAssignmentsAction(groupId: number, userIds: num
     db.transaction((tx) => {
       tx.delete(user_groups).where(eq(user_groups.group_id, groupId)).run();
       if (userIds.length > 0) {
-        tx.insert(user_groups).values(userIds.map(id => ({ group_id: groupId, user_id: id }))).run();
+        tx.insert(user_groups)
+          .values(userIds.map((id) => ({ group_id: groupId, user_id: id })))
+          .run();
       }
 
       tx.delete(group_apps).where(eq(group_apps.group_id, groupId)).run();
       if (appIds.length > 0) {
-        tx.insert(group_apps).values(appIds.map(id => ({ group_id: groupId, app_id: id }))).run();
+        tx.insert(group_apps)
+          .values(appIds.map((id) => ({ group_id: groupId, app_id: id })))
+          .run();
       }
     });
     revalidatePath("/admin");
@@ -427,24 +506,34 @@ export async function deleteApiKeyAction(id: number) {
 // Public Link Actions
 export async function getPublicLinksAction(versionId: number) {
   const session = await getSession();
-  if (!session || session.user.role !== "admin") throw new Error("Unauthorized");
-  
-  return await db.select().from(public_links).where(eq(public_links.version_id, versionId)).all();
+  if (!session || session.user.role !== "admin")
+    throw new Error("Unauthorized");
+
+  return await db
+    .select()
+    .from(public_links)
+    .where(eq(public_links.version_id, versionId))
+    .all();
 }
 
-export async function createPublicLinkAction(data: { version_id: number, expires_in_days?: number, password?: string }) {
+export async function createPublicLinkAction(data: {
+  version_id: number;
+  expires_in_days?: number;
+  password?: string;
+}) {
   const session = await getSession();
-  if (!session || session.user.role !== "admin") throw new Error("Unauthorized");
+  if (!session || session.user.role !== "admin")
+    throw new Error("Unauthorized");
 
   const token = uuidv4();
-  let expires_at = null;
+  let expires_at: string | null = null;
   if (data.expires_in_days) {
     const date = new Date();
     date.setDate(date.getDate() + data.expires_in_days);
     expires_at = date.toISOString();
   }
 
-  let password_hash = null;
+  let password_hash: string | null = null;
   if (data.password) {
     password_hash = await bcrypt.hash(data.password, 10);
   }
@@ -453,7 +542,7 @@ export async function createPublicLinkAction(data: { version_id: number, expires
     version_id: data.version_id,
     token,
     expires_at,
-    password_hash
+    password_hash,
   });
 
   revalidatePath("/admin");
@@ -462,7 +551,8 @@ export async function createPublicLinkAction(data: { version_id: number, expires
 
 export async function deletePublicLinkAction(id: number) {
   const session = await getSession();
-  if (!session || session.user.role !== "admin") throw new Error("Unauthorized");
+  if (!session || session.user.role !== "admin")
+    throw new Error("Unauthorized");
 
   await db.delete(public_links).where(eq(public_links.id, id));
   revalidatePath("/admin");
@@ -470,7 +560,12 @@ export async function deletePublicLinkAction(id: number) {
 }
 
 export async function getPublicLinkInfoAction(token: string) {
-  const linkResult = await db.select().from(public_links).where(eq(public_links.token, token)).limit(1).all();
+  const linkResult = await db
+    .select()
+    .from(public_links)
+    .where(eq(public_links.token, token))
+    .limit(1)
+    .all();
   const link = linkResult[0];
 
   if (!link) return null;
@@ -478,22 +573,40 @@ export async function getPublicLinkInfoAction(token: string) {
     return { expired: true };
   }
 
-  const versionResult = await db.select().from(versions).where(eq(versions.id, link.version_id)).limit(1).all();
+  const versionResult = await db
+    .select()
+    .from(versions)
+    .where(eq(versions.id, link.version_id))
+    .limit(1)
+    .all();
   const version = versionResult[0];
 
-  const appResult = await db.select().from(apps).where(eq(apps.id, version.app_id)).limit(1).all();
+  const appResult = await db
+    .select()
+    .from(apps)
+    .where(eq(apps.id, version.app_id))
+    .limit(1)
+    .all();
   const app = appResult[0];
 
   return {
     version,
     app,
     has_password: !!link.password_hash,
-    expires_at: link.expires_at
+    expires_at: link.expires_at,
   };
 }
 
-export async function verifyPublicLinkPasswordAction(token: string, password: string) {
-  const linkResult = await db.select().from(public_links).where(eq(public_links.token, token)).limit(1).all();
+export async function verifyPublicLinkPasswordAction(
+  token: string,
+  password: string,
+) {
+  const linkResult = await db
+    .select()
+    .from(public_links)
+    .where(eq(public_links.token, token))
+    .limit(1)
+    .all();
   const link = linkResult[0];
 
   if (!link || !link.password_hash) return { success: false };
@@ -505,13 +618,15 @@ export async function verifyPublicLinkPasswordAction(token: string, password: st
 // Webhook Actions
 export async function getWebhooksAction() {
   const session = await getSession();
-  if (!session || session.user.role !== "admin") throw new Error("Unauthorized");
+  if (!session || session.user.role !== "admin")
+    throw new Error("Unauthorized");
   return await db.select().from(webhooks).all();
 }
 
 export async function createWebhookAction(data: { name: string; url: string }) {
   const session = await getSession();
-  if (!session || session.user.role !== "admin") throw new Error("Unauthorized");
+  if (!session || session.user.role !== "admin")
+    throw new Error("Unauthorized");
   await db.insert(webhooks).values(data);
   revalidatePath("/admin");
   return { success: true };
@@ -519,7 +634,8 @@ export async function createWebhookAction(data: { name: string; url: string }) {
 
 export async function deleteWebhookAction(id: number) {
   const session = await getSession();
-  if (!session || session.user.role !== "admin") throw new Error("Unauthorized");
+  if (!session || session.user.role !== "admin")
+    throw new Error("Unauthorized");
   await db.delete(webhooks).where(eq(webhooks.id, id));
   revalidatePath("/admin");
   return { success: true };
@@ -527,15 +643,20 @@ export async function deleteWebhookAction(id: number) {
 
 export async function toggleWebhookAction(id: number, active: boolean) {
   const session = await getSession();
-  if (!session || session.user.role !== "admin") throw new Error("Unauthorized");
-  await db.update(webhooks).set({ is_active: active }).where(eq(webhooks.id, id));
+  if (!session || session.user.role !== "admin")
+    throw new Error("Unauthorized");
+  await db
+    .update(webhooks)
+    .set({ is_active: active })
+    .where(eq(webhooks.id, id));
   return { success: true };
 }
 
 // Settings Actions
 export async function getSettingsAction() {
   const session = await getSession();
-  if (!session || session.user.role !== "admin") throw new Error("Unauthorized");
+  if (!session || session.user.role !== "admin")
+    throw new Error("Unauthorized");
   const data = await db.select().from(settings).all();
   return data.reduce((acc: any, s) => {
     acc[s.key] = s.value;
@@ -545,16 +666,25 @@ export async function getSettingsAction() {
 
 export async function updateSettingsAction(key: string, value: string) {
   const session = await getSession();
-  if (!session || session.user.role !== "admin") throw new Error("Unauthorized");
-  await db.insert(settings)
+  if (!session || session.user.role !== "admin")
+    throw new Error("Unauthorized");
+  await db
+    .insert(settings)
     .values({ key, value })
-    .onConflictDoUpdate({ target: settings.key, set: { value, updated_at: new Date().toISOString() } });
+    .onConflictDoUpdate({
+      target: settings.key,
+      set: { value, updated_at: new Date().toISOString() },
+    });
   return { success: true };
 }
 
 // Background Tasks & Utilities
 export async function triggerWebhooks(event: string, data: any) {
-  const activeWebhooks = await db.select().from(webhooks).where(and(eq(webhooks.event, event), eq(webhooks.is_active, true))).all();
+  const activeWebhooks = await db
+    .select()
+    .from(webhooks)
+    .where(and(eq(webhooks.event, event), eq(webhooks.is_active, true)))
+    .all();
 
   for (const wh of activeWebhooks) {
     try {
@@ -564,13 +694,13 @@ export async function triggerWebhooks(event: string, data: any) {
         await fetch(wh.url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: message, parse_mode: "Markdown" })
+          body: JSON.stringify({ text: message, parse_mode: "Markdown" }),
         });
       } else {
         await fetch(wh.url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ event, data })
+          body: JSON.stringify({ event, data }),
         });
       }
     } catch (e) {
@@ -601,7 +731,7 @@ export async function enforceRetentionPolicy(appId: number) {
     const toDelete = appVersions.slice(retentionCount);
     for (const v of toDelete) {
       const uploadDir = path.join(process.cwd(), "uploads", appId.toString());
-      
+
       // Delete main file
       const filePath = path.join(uploadDir, v.file_path);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
@@ -621,6 +751,8 @@ export async function enforceRetentionPolicy(appId: number) {
       // Delete from DB
       await db.delete(versions).where(eq(versions.id, v.id));
     }
-    console.log(`Retention policy: Deleted ${toDelete.length} old versions for app ${appId}`);
+    console.log(
+      `Retention policy: Deleted ${toDelete.length} old versions for app ${appId}`,
+    );
   }
 }

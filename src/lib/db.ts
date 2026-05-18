@@ -23,7 +23,7 @@ export const db = drizzle(sqlite, { schema });
 // Initialize tables and default admin user
 try {
   // Create tables if they don't exist (Drizzle push alternative for zero-config)
-  sqlite.exec( `
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL UNIQUE,

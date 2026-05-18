@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "format": "npx prettier --write 'src/**/*.ts'"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",
