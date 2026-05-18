@@ -5,6 +5,7 @@ import { Download, LogOut, Smartphone, Package, Calendar, Clock, History, QrCode
 import { useRouter } from 'next/navigation';
 import { getMyAppsAction, logoutAction, getAppVersionsAction } from '@/src/lib/actions';
 import { ThemeToggle } from '@/src/components/theme-toggle';
+import { copyToClipboard } from '@/src/lib/utils';
 import QRCode from 'qrcode';
 
 interface AppWithVersion {
@@ -56,13 +57,7 @@ export default function UserDashboard() {
 
   const handleInstall = (platform: 'android' | 'ios', versionId: number) => {
     if (platform === 'android') {
-      const url = `/api/download?versionId=${versionId}`;
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', '');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      window.location.href = `/api/download?versionId=${versionId}`;
     } else {
       const protocol = window.location.protocol;
       const host = window.location.host;
@@ -303,22 +298,25 @@ function VersionHistoryModal({ app, onClose, onInstall }: { app: AppWithVersion,
 
 function QRCodeModal({ app, onClose }: { app: AppWithVersion, onClose: () => void }) {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [installUrl, setInstallUrl] = useState<string>('');
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     const generateQR = async () => {
       try {
         const protocol = window.location.protocol;
         const host = window.location.host;
-        let installUrl = '';
+        let url = '';
 
         if (app.platform === 'android') {
-          installUrl = `${protocol}//${host}/api/download?versionId=${app.version_id}`;
+          url = `${protocol}//${host}/api/download?versionId=${app.version_id}`;
         } else {
           const manifestUrl = `${protocol}//${host}/api/manifest?versionId=${app.version_id}`;
-          installUrl = `itms-services://?action=download-manifest&url=${encodeURIComponent(manifestUrl)}`;
+          url = `itms-services://?action=download-manifest&url=${encodeURIComponent(manifestUrl)}`;
         }
 
-        const dataUrl = await QRCode.toDataURL(installUrl, {
+        setInstallUrl(url);
+        const dataUrl = await QRCode.toDataURL(url, {
           width: 300,
           margin: 2,
           color: {
@@ -336,6 +334,14 @@ function QRCodeModal({ app, onClose }: { app: AppWithVersion, onClose: () => voi
       generateQR();
     }
   }, [app]);
+
+  const handleCopy = async () => {
+    const success = await copyToClipboard(installUrl);
+    if (success) {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
@@ -355,9 +361,28 @@ function QRCodeModal({ app, onClose }: { app: AppWithVersion, onClose: () => voi
           )}
         </div>
 
-        <p className="text-xs text-center text-muted-foreground max-w-[200px]">
-          Point your camera at the QR code to quickly {app.platform === 'ios' ? 'install' : 'download'} this build on your device.
-        </p>
+        <div className="w-full space-y-3">
+          <button
+            onClick={handleCopy}
+            className={`w-full inline-flex h-9 items-center justify-center rounded-md border text-sm font-medium transition-colors ${isCopied ? 'bg-green-50 text-green-600 border-green-200' : 'bg-background hover:bg-accent hover:text-accent-foreground'}`}
+          >
+            {isCopied ? (
+              <>
+                <Check className="mr-2 h-4 w-4" />
+                Copied Link!
+              </>
+            ) : (
+              <>
+                <Copy className="mr-2 h-4 w-4" />
+                Copy Install Link
+              </>
+            )}
+          </button>
+          
+          <p className="text-xs text-center text-muted-foreground">
+            Point your camera at the QR code to quickly {app.platform === 'ios' ? 'install' : 'download'} this build on your device.
+          </p>
+        </div>
 
         <button 
           onClick={onClose}

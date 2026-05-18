@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import db from "@/src/lib/db";
 import { versions, apps, public_links, download_logs } from "@/src/lib/schema";
-import { eq, and } from "drizzle-orm";
-import { readFile } from "fs/promises";
+import { eq } from "drizzle-orm";
 import path from "path";
 import fs from "fs";
+import { stat } from "fs/promises";
 import bcrypt from "bcryptjs";
 
 export async function GET(request: Request) {
@@ -81,7 +81,8 @@ export async function GET(request: Request) {
     return new NextResponse("File not found on server", { status: 404 });
   }
 
-  const fileBuffer = await readFile(filePath);
+  const fileStat = await stat(filePath);
+  const fileStream = fs.createReadStream(filePath);
 
   // Log download
   try {
@@ -111,11 +112,23 @@ export async function GET(request: Request) {
     contentType = "application/x-itunes-ipa";
   }
 
-  return new Response(fileBuffer, {
+  // Use ReadableStream to wrap the Node.js ReadStream for Next.js response
+  const stream = new ReadableStream({
+    start(controller) {
+      fileStream.on("data", (chunk) => controller.enqueue(new Uint8Array(chunk)));
+      fileStream.on("end", () => controller.close());
+      fileStream.on("error", (err) => controller.error(err));
+    },
+    cancel() {
+      fileStream.destroy();
+    },
+  });
+
+  return new Response(stream, {
     headers: {
       "Content-Type": contentType,
       "Content-Disposition": `attachment; filename="${customFilename}"`,
-      "Content-Length": fileBuffer.length.toString(),
+      "Content-Length": fileStat.size.toString(),
     },
   });
 }

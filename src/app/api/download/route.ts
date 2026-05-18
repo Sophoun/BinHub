@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import db from "@/src/lib/db";
-import { versions, user_apps, apps, download_logs } from "@/src/lib/schema";
-import { eq, and } from "drizzle-orm";
+import { versions, user_apps, apps, download_logs, group_apps, user_groups } from "@/src/lib/schema";
+import { eq, and, or } from "drizzle-orm";
 import { getSession } from "@/src/lib/auth";
-import { readFile } from "fs/promises";
 import path from "path";
 import fs from "fs";
+import { stat } from "fs/promises";
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -40,16 +40,25 @@ export async function GET(request: Request) {
 
   const { version, app } = result;
 
-  // Check if user has access to this app
+  // Check if user has access to this app (Direct or via Group)
   if (session.user.role !== "admin") {
+    const userId = session.user.id;
+    
+    // Check direct assignment or group assignment
     const access = await db
-      .select({ id: user_apps.user_id })
-      .from(user_apps)
+      .select({ id: apps.id })
+      .from(apps)
+      .leftJoin(user_apps, eq(apps.id, user_apps.app_id))
+      .leftJoin(group_apps, eq(apps.id, group_apps.app_id))
+      .leftJoin(user_groups, eq(group_apps.group_id, user_groups.group_id))
       .where(
         and(
-          eq(user_apps.user_id, session.user.id),
-          eq(user_apps.app_id, version.app_id),
-        ),
+          eq(apps.id, version.app_id),
+          or(
+            eq(user_apps.user_id, userId),
+            eq(user_groups.user_id, userId)
+          )
+        )
       )
       .limit(1);
 
@@ -92,7 +101,8 @@ export async function GET(request: Request) {
     );
   }
 
-  const fileBuffer = await readFile(filePath);
+  const fileStat = await stat(filePath);
+  const fileStream = fs.createReadStream(filePath);
 
   // Construct the new filename: AppName-Version-BuildNumber.extension
   const extension = path.extname(fileNameToDownload);
@@ -111,11 +121,23 @@ export async function GET(request: Request) {
     contentType = "application/x-itunes-ipa";
   }
 
-  return new Response(fileBuffer, {
+  // Use ReadableStream to wrap the Node.js ReadStream for Next.js response
+  const stream = new ReadableStream({
+    start(controller) {
+      fileStream.on("data", (chunk) => controller.enqueue(new Uint8Array(chunk)));
+      fileStream.on("end", () => controller.close());
+      fileStream.on("error", (err) => controller.error(err));
+    },
+    cancel() {
+      fileStream.destroy();
+    },
+  });
+
+  return new Response(stream, {
     headers: {
       "Content-Type": contentType,
       "Content-Disposition": `attachment; filename="${customFilename}"`,
-      "Content-Length": fileBuffer.length.toString(),
+      "Content-Length": fileStat.size.toString(),
     },
   });
 }
