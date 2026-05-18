@@ -25,7 +25,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 # Java is needed for bundletool
-RUN apk add --no-cache openjdk17-jre
+RUN apk add --no-cache openjdk17-jre libc6-compat libstdc++
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
