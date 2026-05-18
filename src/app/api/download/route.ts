@@ -64,12 +64,12 @@ export async function GET(request: Request) {
       request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
     const userAgent = request.headers.get("user-agent") || "unknown";
 
-    await db.insert(download_logs).values({
+    db.insert(download_logs).values({
       version_id: versionId,
       user_id: session.user.id,
       ip_address: ip,
       user_agent: userAgent,
-    });
+    }).run();
   } catch (e) {
     console.error("Failed to log download:", e);
   }
@@ -103,10 +103,19 @@ export async function GET(request: Request) {
 
   const customFilename = `${safeAppName}-${safeVersion}-${safeBuild}${suffix}${extension}`;
 
-  return new NextResponse(fileBuffer, {
+  // Content-Type based on extension
+  let contentType = "application/octet-stream";
+  if (extension === ".apk") {
+    contentType = "application/vnd.android.package-archive";
+  } else if (extension === ".ipa") {
+    contentType = "application/x-itunes-ipa";
+  }
+
+  return new Response(fileBuffer, {
     headers: {
-      "Content-Type": "application/octet-stream",
+      "Content-Type": contentType,
       "Content-Disposition": `attachment; filename="${customFilename}"`,
+      "Content-Length": fileBuffer.length.toString(),
     },
   });
 }

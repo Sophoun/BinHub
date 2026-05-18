@@ -84,11 +84,17 @@ export async function GET(request: Request) {
   const fileBuffer = await readFile(filePath);
 
   // Log download
-  await db.insert(download_logs).values({
-    version_id: version.id,
-    ip_address: request.headers.get("x-forwarded-for") || "unknown",
-    user_agent: request.headers.get("user-agent") || "unknown",
-  });
+  try {
+    db.insert(download_logs)
+      .values({
+        version_id: version.id,
+        ip_address: request.headers.get("x-forwarded-for") || "unknown",
+        user_agent: request.headers.get("user-agent") || "unknown",
+      })
+      .run();
+  } catch (e) {
+    console.error("Failed to log download:", e);
+  }
 
   const extension = path.extname(fileNameToDownload);
   const safeName = app.name.replace(/[^a-z0-9]/gi, "_");
@@ -97,10 +103,19 @@ export async function GET(request: Request) {
   const suffix = useOriginal ? "-original" : "";
   const customFilename = `${safeName}-${safeVersion}${safeBuild}${suffix}${extension}`;
 
-  return new NextResponse(fileBuffer, {
+  // Content-Type based on extension
+  let contentType = "application/octet-stream";
+  if (extension === ".apk") {
+    contentType = "application/vnd.android.package-archive";
+  } else if (extension === ".ipa") {
+    contentType = "application/x-itunes-ipa";
+  }
+
+  return new Response(fileBuffer, {
     headers: {
-      "Content-Type": "application/octet-stream",
+      "Content-Type": contentType,
       "Content-Disposition": `attachment; filename="${customFilename}"`,
+      "Content-Length": fileBuffer.length.toString(),
     },
   });
 }

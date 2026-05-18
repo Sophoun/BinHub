@@ -67,7 +67,7 @@ export async function GET(request: Request) {
 
   manifestContent = manifestContent.replace("{{DOWNLOAD_URL}}", downloadUrl);
 
-  return new NextResponse(manifestContent, {
+  return new Response(manifestContent, {
     headers: {
       "Content-Type": "text/xml",
     },

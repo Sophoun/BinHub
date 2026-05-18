@@ -46,7 +46,7 @@ export async function GET(request: Request) {
   if (extension === ".svg") contentType = "image/svg+xml";
   if (extension === ".webp") contentType = "image/webp";
 
-  return new NextResponse(fileBuffer, {
+  return new Response(fileBuffer, {
     headers: {
       "Content-Type": contentType,
       "Cache-Control": "public, max-age=3600",
