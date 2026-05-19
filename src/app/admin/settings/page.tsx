@@ -25,11 +25,13 @@ export default function SettingsPage() {
     );
   }
 
-  const onUpdateRetention = async (count: string) => {
-    setLocalSettings({ ...localSettings, retention_count: count });
-    await updateSettingsAction("retention_count", count);
+  const onUpdateSetting = async (key: string, value: string) => {
+    setLocalSettings({ ...localSettings, [key]: value });
+    await updateSettingsAction(key, value);
     fetchSettings();
   };
+
+  const onUpdateRetention = (count: string) => onUpdateSetting("retention_count", count);
 
   return (
     <>
@@ -37,6 +39,7 @@ export default function SettingsPage() {
         settings={localSettings}
         webhooks={webhooks}
         onUpdateRetention={onUpdateRetention}
+        onUpdateSetting={onUpdateSetting}
         onAddWebhook={() => setShowAddWebhook(true)}
         onDeleteWebhook={(id) => handleDeleteWebhook(id, fetchWebhooks)}
         onToggleWebhook={(id, active) => handleToggleWebhook(id, active, fetchWebhooks)}

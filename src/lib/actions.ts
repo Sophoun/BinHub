@@ -18,10 +18,12 @@ import {
   settings,
 } from "./schema";
 import { eq, and, desc, sql, or } from "drizzle-orm";
-import { getSession, login, logout } from "./auth";
+import { getSession, login, logout, authenticateLdap, getLdapConfig } from "./auth";
 import fs from "fs";
 import path from "path";
 import bcrypt from "bcryptjs";
+import * as ldap from "ldapjs";
+const Client = (ldap as any).createClient || (ldap as any).default?.createClient || (ldap as any).Client;
 import { v4 as uuidv4 } from "uuid";
 
 // Auth Actions
@@ -35,9 +37,29 @@ export async function loginAction(prevState: any, formData: FormData) {
     .where(eq(users.username, username))
     .limit(1)
     .all();
-  const user = userResult[0];
+  let user = userResult[0];
 
+  // Try local auth
   if (user && (await bcrypt.compare(password, user.password_hash))) {
+    await login({ id: user.id, username: user.username, role: user.role });
+    return { success: true, role: user.role };
+  }
+
+  // Fallback to LDAP
+  if (await authenticateLdap(username, password)) {
+    // If user doesn't exist in DB, create one
+    if (!user) {
+      const newUser = await db
+        .insert(users)
+        .values({
+          username,
+          password_hash: "LDAP_USER",
+          role: "user",
+        })
+        .returning({ id: users.id, username: users.username, role: users.role });
+      user = newUser[0] as any;
+    }
+
     await login({ id: user.id, username: user.username, role: user.role });
     return { success: true, role: user.role };
   }
@@ -657,18 +679,44 @@ export async function toggleWebhookAction(id: number, active: boolean) {
     .where(eq(webhooks.id, id));
   return { success: true };
 }
-
 // Settings Actions
 export async function getSettingsAction() {
   const session = await getSession();
-  if (!session || session.user.role !== "admin")
+  if (!session || session.user.role !== "admin") {
     throw new Error("Unauthorized");
+  }
   const data = await db.select().from(settings).all();
   return data.reduce((acc: any, s) => {
     acc[s.key] = s.value;
     return acc;
   }, {});
 }
+
+export async function testLdapConnectionAction() {
+  const session = await getSession();
+  if (!session || session.user.role !== "admin")
+    throw new Error("Unauthorized");
+
+  const config = await getLdapConfig();
+  const url = config["ldap_url"];
+  const bindDn = config["ldap_bind_dn"] || "";
+  const bindPassword = config["ldap_bind_password"] || "";
+
+  if (!url) return { success: false, message: "LDAP URL is required" };
+
+  return new Promise((resolve) => {
+    const client = Client({ url });
+    client.bind(bindDn, bindPassword, (err) => {
+      client.unbind();
+      if (err) {
+        resolve({ success: false, message: err.message });
+      } else {
+        resolve({ success: true, message: "Connection successful" });
+      }
+    });
+  });
+}
+
 
 export async function updateSettingsAction(key: string, value: string) {
   const session = await getSession();

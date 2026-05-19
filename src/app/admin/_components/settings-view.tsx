@@ -1,13 +1,15 @@
 "use client";
 
 import React from "react";
-import { HardDrive, Bell, Plus, Trash2 } from "lucide-react";
+import { HardDrive, Bell, Plus, Trash2, ShieldCheck } from "lucide-react";
+import { testLdapConnectionAction } from "@/src/lib/actions";
 import { FormItem, Input } from "./ui";
 
 export function SettingsView({
   settings,
   webhooks,
   onUpdateRetention,
+  onUpdateSetting,
   onAddWebhook,
   onDeleteWebhook,
   onToggleWebhook,
@@ -15,12 +17,73 @@ export function SettingsView({
   settings: any;
   webhooks: any[];
   onUpdateRetention: (count: string) => void;
+  onUpdateSetting: (key: string, value: string) => void;
   onAddWebhook: () => void;
   onDeleteWebhook: (id: number) => void;
   onToggleWebhook: (id: number, active: boolean) => void;
 }) {
   return (
     <div className="space-y-8">
+      {/* LDAP Authentication */}
+      <div className="rounded-lg border bg-card p-6 shadow-sm">
+        <div className="flex items-center gap-2 mb-4">
+          <ShieldCheck className="h-5 w-5 text-primary" />
+          <h3 className="text-lg font-semibold">LDAP Authentication</h3>
+        </div>
+        <p className="text-sm text-muted-foreground mb-6">
+          Configure LDAP authentication as a fallback method for user login.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormItem label="LDAP URL (Required)">
+            <Input
+              value={settings.ldap_url || ""}
+              onChange={(e) => onUpdateSetting("ldap_url", e.target.value)}
+              placeholder="ldap://ldap.example.com:389"
+            />
+          </FormItem>
+          <FormItem label="Base DN (Required)">
+            <Input
+              value={settings.ldap_base_dn || ""}
+              onChange={(e) => onUpdateSetting("ldap_base_dn", e.target.value)}
+              placeholder="dc=example,dc=com"
+            />
+          </FormItem>
+          <FormItem label="Bind DN (Optional)">
+            <Input
+              value={settings.ldap_bind_dn || ""}
+              onChange={(e) => onUpdateSetting("ldap_bind_dn", e.target.value)}
+              placeholder="cn=admin,dc=example,dc=com"
+            />
+          </FormItem>
+          <FormItem label="Bind Password (Optional)">
+            <Input
+              type="password"
+              value={settings.ldap_bind_password || ""}
+              onChange={(e) => onUpdateSetting("ldap_bind_password", e.target.value)}
+              placeholder="••••••••"
+            />
+          </FormItem>
+          <FormItem label="Search Filter (Optional)">
+            <Input
+              value={settings.ldap_search_filter || ""}
+              onChange={(e) => onUpdateSetting("ldap_search_filter", e.target.value)}
+              placeholder="(&(objectClass=user)(sAMAccountName={{username}}))"
+            />
+          </FormItem>
+          <div className="flex items-end">
+            <button
+              onClick={async () => {
+                const res = (await testLdapConnectionAction()) as { success: boolean; message: string };
+                alert(res.message);
+              }}
+              className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              Test Connection
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Retention Policy */}
       <div className="rounded-lg border bg-card p-6 shadow-sm">
         <div className="flex items-center gap-2 mb-4">
