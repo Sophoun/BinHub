@@ -183,6 +183,29 @@ For Slack or custom integrations, BinHub sends a standard JSON payload:
 }
 ```
 
+## LDAP Authentication
+
+BinHub supports optional LDAP integration as a fallback authentication method.
+
+### Configuration
+
+1. Log in to your Admin account.
+2. Navigate to **Admin Dashboard -> Settings**.
+3. Under the **LDAP Authentication** section, enter the following details:
+   - **LDAP URL:** The URL of your LDAP server (e.g., `ldap://ldap.example.com:389`).
+   - **Base DN:** The distinguished name for your base search path (e.g., `dc=example,dc=com`).
+   - **Bind DN (Optional):** DN for binding to the LDAP server for searching (e.g., `cn=admin,dc=example,dc=com`).
+   - **Bind Password (Optional):** Password for the bind user.
+   - **Search Filter (Optional):** The filter template used to find the user (e.g., `(&(objectClass=user)(sAMAccountName={{username}}))`).
+4. Click **Test Connection** to ensure connectivity before saving your changes.
+
+### Authentication Flow
+
+When a user attempts to log in, BinHub will:
+1. Attempt authentication against the local database.
+2. If the local login fails, it will attempt authentication against the configured LDAP server.
+3. If LDAP authentication succeeds for a user not already in your local database, BinHub will automatically create a user record with the `user` role, allowing immediate access.
+
 ## License
 
 This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
