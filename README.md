@@ -64,7 +64,7 @@ A secure, self-hosted Over-The-Air (OTA) distribution platform for mobile applic
     npm run dev
     ```
 
-    The app will be available at `http://localhost:3000`.
+    The app will be available at `http://localhost:3000/binhub`.
 
 ## Docker Deployment
 
@@ -202,6 +202,7 @@ BinHub supports optional LDAP integration as a fallback authentication method.
 ### Authentication Flow
 
 When a user attempts to log in, BinHub will:
+
 1. Attempt authentication against the local database.
 2. If the local login fails, it will attempt authentication against the configured LDAP server.
 3. If LDAP authentication succeeds for a user not already in your local database, BinHub will automatically create a user record with the `user` role, allowing immediate access.
