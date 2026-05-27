@@ -100,7 +100,7 @@ export function SettingsView({
             <Input
               type="number"
               min="0"
-              value={settings.retention_count}
+              value={settings.retention_count || "0"}
               onChange={(e) => onUpdateRetention(e.target.value)}
             />
           </FormItem>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAdminData } from "../_hooks/use-admin-data";
 import { handleDeleteWebhook, handleToggleWebhook } from "../_utils/admin-helpers";
 import { SettingsView } from "../_components/settings-view";
@@ -11,9 +11,10 @@ export default function SettingsPage() {
   const { settings, webhooks, fetchWebhooks, fetchSettings, loading } = useAdminData();
   const [showAddWebhook, setShowAddWebhook] = useState(false);
   const [localSettings, setLocalSettings] = useState(settings);
+  const isSyncingRef = useRef(false);
 
-  // Sync local settings when data is fetched
-  React.useEffect(() => {
+  // Sync local settings when remote settings are loaded/changed
+  useEffect(() => {
     setLocalSettings(settings);
   }, [settings]);
 
@@ -26,7 +27,7 @@ export default function SettingsPage() {
   }
 
   const onUpdateSetting = async (key: string, value: string) => {
-    setLocalSettings({ ...localSettings, [key]: value });
+    setLocalSettings((prev) => ({ ...prev, [key]: value }));
     await updateSettingsAction(key, value);
     fetchSettings();
   };

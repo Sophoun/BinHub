@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   getAppsAction,
   getUsersAction,
@@ -60,11 +60,12 @@ export function useAdminData() {
   const [webhooks, setWebhooks] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({ retention_count: "0" });
   const [loading, setLoading] = useState(true);
+  const initialFetchRef = useRef(false);
 
   const fetchApps = useCallback(async () => {
     try {
       const data = await getAppsAction();
-      setApps(data);
+      setApps(data as App[]);
     } catch (e) {
       console.error(e);
     }
@@ -73,7 +74,7 @@ export function useAdminData() {
   const fetchUsers = useCallback(async () => {
     try {
       const data = await getUsersAction();
-      setUsers(data);
+      setUsers(data as User[]);
     } catch (e) {
       console.error(e);
     }
@@ -82,7 +83,7 @@ export function useAdminData() {
   const fetchGroups = useCallback(async () => {
     try {
       const data = await getGroupsAction();
-      setGroups(data);
+      setGroups(data as Group[]);
     } catch (e) {
       console.error(e);
     }
@@ -109,7 +110,7 @@ export function useAdminData() {
   const fetchSettings = useCallback(async () => {
     try {
       const data = await getSettingsAction();
-      setSettings(data);
+      setSettings((prev: any) => ({ ...prev, ...data }));
     } catch (e) {
       console.error(e);
     }
@@ -117,19 +118,25 @@ export function useAdminData() {
 
   const refreshAll = useCallback(async () => {
     setLoading(true);
-    await Promise.all([
-      fetchApps(),
-      fetchUsers(),
-      fetchGroups(),
-      fetchApiKeys(),
-      fetchWebhooks(),
-      fetchSettings(),
-    ]);
-    setLoading(false);
+    try {
+      await Promise.all([
+        fetchApps(),
+        fetchUsers(),
+        fetchGroups(),
+        fetchApiKeys(),
+        fetchWebhooks(),
+        fetchSettings(),
+      ]);
+    } finally {
+      setLoading(false);
+    }
   }, [fetchApps, fetchUsers, fetchGroups, fetchApiKeys, fetchWebhooks, fetchSettings]);
 
   useEffect(() => {
-    refreshAll();
+    if (!initialFetchRef.current) {
+      initialFetchRef.current = true;
+      refreshAll();
+    }
   }, [refreshAll]);
 
   return {
