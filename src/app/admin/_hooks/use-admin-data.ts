@@ -35,11 +35,11 @@ export interface ApiKey {
 export interface App extends BaseApp {
   latest_version?: string;
   download_count?: number;
-  android_keystore_path?: string | null;
-  android_keystore_pass?: string | null;
-  android_key_alias?: string | null;
-  android_key_pass?: string | null;
-  minify_enabled?: boolean;
+  android_keystore_path: string | null;
+  android_keystore_pass: string | null;
+  android_key_alias: string | null;
+  android_key_pass: string | null;
+  minify_enabled: boolean;
 }
 
 export interface Version {
