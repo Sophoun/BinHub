@@ -23,6 +23,13 @@ export const apps = sqliteTable("apps", {
   package_name: text("package_name").notNull(),
   platform: text("platform", { enum: ["android", "ios"] }).notNull(),
   icon_path: text("icon_path"),
+  android_keystore_path: text("android_keystore_path"),
+  android_keystore_pass: text("android_keystore_pass"),
+  android_key_alias: text("android_key_alias"),
+  android_key_pass: text("android_key_pass"),
+  minify_enabled: integer("minify_enabled", { mode: "boolean" })
+    .notNull()
+    .default(false),
   created_at: text("created_at").default(sql`(CURRENT_TIMESTAMP)`),
   updated_at: text("updated_at").default(sql`(CURRENT_TIMESTAMP)`),
 });

@@ -97,6 +97,21 @@ export async function POST(request: Request) {
       const info = await parser.parse();
 
       if (app.platform === "android") {
+        // Minification Check: For Android, we use 'debuggable' flag as a proxy for minified/release builds.
+        // Production builds with minifyEnabled=true are typically NOT debuggable.
+        if (app.minify_enabled) {
+          const isDebuggable = info.application?.debuggable === true || info.application?.debuggable === "true";
+          if (isDebuggable) {
+            if (fs.existsSync(finalFilePath)) await unlink(finalFilePath);
+            return NextResponse.json(
+              {
+                error: "Upload rejected: This app requires minified (non-debuggable) builds, but the uploaded file is debuggable.",
+              },
+              { status: 400 },
+            );
+          }
+        }
+
         extractedVersion = info.versionName || manualVersion;
         extractedBuild = info.versionCode?.toString() || manualBuild;
         extractedPackage = info.package || app.package_name;

@@ -15,6 +15,14 @@ export function AddAppModal({
   const [packageName, setPackageName] = useState("");
   const [platform, setPlatform] = useState<"android" | "ios">("android");
   const [icon, setIcon] = useState<File | null>(null);
+  
+  // Android Keystore states
+  const [ksFile, setKsFile] = useState<File | null>(null);
+  const [ksPass, setKsPass] = useState("");
+  const [ksAlias, setKsAlias] = useState("");
+  const [keyPass, setKeyPass] = useState("");
+  const [minifyEnabled, setMinifyEnabled] = useState(false);
+  
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -25,7 +33,15 @@ export function AddAppModal({
       formData.append("name", name || "Auto-extracting...");
       formData.append("package_name", packageName || "pending");
       formData.append("platform", platform);
+      formData.append("minify_enabled", String(minifyEnabled));
       if (icon) formData.append("icon", icon);
+      
+      if (platform === "android") {
+        if (ksFile) formData.append("android_keystore_file", ksFile);
+        formData.append("android_keystore_pass", ksPass);
+        formData.append("android_key_alias", ksAlias);
+        formData.append("android_key_pass", keyPass);
+      }
 
       await createAppAction(formData);
       refresh();
@@ -40,7 +56,7 @@ export function AddAppModal({
 
   return (
     <Modal title="Add Application" onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 max-h-[80vh] overflow-y-auto px-1">
         <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded-md border border-dashed mb-2 italic">
           Tip: You can just select the platform and app name. Better yet,
           details will be automatically updated when you upload your first
@@ -78,6 +94,72 @@ export function AddAppModal({
             <option value="ios">iOS (IPA)</option>
           </select>
         </FormItem>
+
+        {platform === "android" && (
+          <>
+            <div className="mt-4 p-4 border rounded-md bg-muted/30 space-y-4">
+              <h4 className="text-sm font-semibold">Build Requirements</h4>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="minify_enabled"
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  checked={minifyEnabled}
+                  onChange={(e) => setMinifyEnabled(e.target.checked)}
+                />
+                <label
+                  htmlFor="minify_enabled"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Require Minified Build (ProGuard/R8)
+                </label>
+              </div>
+              <p className="text-[10px] text-muted-foreground italic">
+                If enabled, uploads that are not obfuscated/minified will be rejected.
+              </p>
+            </div>
+
+            <div className="mt-4 p-4 border rounded-md bg-muted/30 space-y-3">
+              <h4 className="text-sm font-semibold">Android Keystore (Optional)</h4>
+              <p className="text-xs text-muted-foreground">
+                Required for AAB to signed APK conversion.
+              </p>
+              <FormItem label="Keystore File (.keystore, .jks)">
+                <Input
+                  type="file"
+                  accept=".keystore,.jks"
+                  onChange={(e) => setKsFile(e.target.files?.[0] || null)}
+                />
+              </FormItem>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <FormItem label="Keystore Password">
+                  <Input
+                    type="password"
+                    value={ksPass}
+                    onChange={(e) => setKsPass(e.target.value)}
+                    placeholder="••••••••"
+                  />
+                </FormItem>
+                <FormItem label="Key Alias">
+                  <Input
+                    value={ksAlias}
+                    onChange={(e) => setKsAlias(e.target.value)}
+                    placeholder="release-key"
+                  />
+                </FormItem>
+                <FormItem label="Key Password">
+                  <Input
+                    type="password"
+                    value={keyPass}
+                    onChange={(e) => setKeyPass(e.target.value)}
+                    placeholder="••••••••"
+                  />
+                </FormItem>
+              </div>
+            </div>
+          </>
+        )}
+
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4">
           <button
             type="button"

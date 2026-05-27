@@ -228,6 +228,13 @@ export async function createAppAction(formData: FormData) {
   const package_name = formData.get("package_name") as string;
   const platform = formData.get("platform") as "android" | "ios";
   const icon = formData.get("icon") as File;
+  const minifyEnabled = formData.get("minify_enabled") === "true";
+  
+  // Keystore fields
+  const keystoreFile = formData.get("android_keystore_file") as File;
+  const ksPass = formData.get("android_keystore_pass") as string;
+  const ksAlias = formData.get("android_key_alias") as string;
+  const keyPass = formData.get("android_key_pass") as string;
 
   const result = await db
     .insert(apps)
@@ -235,27 +242,40 @@ export async function createAppAction(formData: FormData) {
       name,
       package_name,
       platform,
+      android_keystore_pass: ksPass || null,
+      android_key_alias: ksAlias || null,
+      android_key_pass: keyPass || null,
+      minify_enabled: minifyEnabled,
     })
     .returning({ id: apps.id });
 
   const appId = result[0].id;
 
-  if (icon) {
+  const uploadDir = path.join(process.cwd(), "data/uploads", appId.toString());
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+
+  if (icon && icon.size > 0) {
     const bytes = await icon.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const uploadDir = path.join(
-      process.cwd(),
-      "data/uploads",
-      appId.toString(),
-    );
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
     const iconPath = "icon.png";
     fs.writeFileSync(path.join(uploadDir, iconPath), buffer);
     await db
       .update(apps)
       .set({ icon_path: iconPath })
+      .where(eq(apps.id, appId));
+  }
+
+  if (keystoreFile && keystoreFile.size > 0) {
+    const bytes = await keystoreFile.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const ksFileName = "upload.keystore";
+    const ksPath = path.join(uploadDir, ksFileName);
+    fs.writeFileSync(ksPath, buffer);
+    await db
+      .update(apps)
+      .set({ android_keystore_path: ksFileName })
       .where(eq(apps.id, appId));
   }
 
@@ -273,6 +293,12 @@ export async function updateAppAction(id: number, formData: FormData) {
   const package_name = formData.get("package_name") as string;
   const platform = formData.get("platform") as "android" | "ios";
   const icon = formData.get("icon") as File;
+  
+  // Keystore fields
+  const keystoreFile = formData.get("android_keystore_file") as File;
+  const ksPass = formData.get("android_keystore_pass") as string;
+  const ksAlias = formData.get("android_key_alias") as string;
+  const keyPass = formData.get("android_key_pass") as string;
 
   await db
     .update(apps)
@@ -280,20 +306,33 @@ export async function updateAppAction(id: number, formData: FormData) {
       name,
       package_name,
       platform,
+      android_keystore_pass: ksPass || null,
+      android_key_alias: ksAlias || null,
+      android_key_pass: keyPass || null,
       updated_at: new Date().toISOString(),
     })
     .where(eq(apps.id, id));
 
+  const uploadDir = path.join(process.cwd(), "data/uploads", id.toString());
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+
   if (icon && icon.size > 0) {
     const bytes = await icon.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const uploadDir = path.join(process.cwd(), "data/uploads", id.toString());
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
     const iconPath = "icon.png";
     fs.writeFileSync(path.join(uploadDir, iconPath), buffer);
     await db.update(apps).set({ icon_path: iconPath }).where(eq(apps.id, id));
+  }
+
+  if (keystoreFile && keystoreFile.size > 0) {
+    const bytes = await keystoreFile.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const ksFileName = "upload.keystore";
+    const ksPath = path.join(uploadDir, ksFileName);
+    fs.writeFileSync(ksPath, buffer);
+    await db.update(apps).set({ android_keystore_path: ksFileName }).where(eq(apps.id, id));
   }
 
   revalidatePath("/admin");

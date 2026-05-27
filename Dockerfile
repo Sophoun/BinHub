@@ -24,8 +24,8 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-# Java is needed for bundletool
-RUN apk add --no-cache openjdk17-jre libc6-compat libstdc++
+# Java is needed for bundletool, unzip is needed for extracting APK from APKS
+RUN apk add --no-cache openjdk17-jre libc6-compat libstdc++ unzip
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs

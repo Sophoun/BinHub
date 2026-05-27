@@ -39,6 +39,11 @@ try {
       package_name TEXT NOT NULL,
       platform TEXT NOT NULL,
       icon_path TEXT,
+      android_keystore_path TEXT,
+      android_keystore_pass TEXT,
+      android_key_alias TEXT,
+      android_key_pass TEXT,
+      minify_enabled INTEGER NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
@@ -117,11 +122,30 @@ try {
   try {
     sqlite.exec("ALTER TABLE versions ADD COLUMN original_file_path TEXT");
     console.log("Migration: Added original_file_path to versions table");
-  } catch (e: any) {
-    if (!e.message.includes("duplicate column name")) {
-      // console.warn("Migration status:", e.message);
+  } catch (e: any) {}
+
+  // Add Android Keystore columns to apps table
+  const keystoreColumns = [
+    "android_keystore_path",
+    "android_keystore_pass",
+    "android_key_alias",
+    "android_key_pass"
+  ];
+
+  for (const col of keystoreColumns) {
+    try {
+      sqlite.exec(`ALTER TABLE apps ADD COLUMN ${col} TEXT`);
+      console.log(`Migration: Added ${col} to apps table`);
+    } catch (e: any) {
+      // Ignore if column already exists
     }
   }
+
+  // Add minify_enabled column to apps table
+  try {
+    sqlite.exec("ALTER TABLE apps ADD COLUMN minify_enabled INTEGER NOT NULL DEFAULT 0");
+    console.log("Migration: Added minify_enabled to apps table");
+  } catch (e: any) {}
 
   const userCount = sqlite
     .prepare("SELECT COUNT(*) as count FROM users")
