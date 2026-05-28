@@ -69,6 +69,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "App not found" }, { status: 404 });
     }
 
+    // AAB Keystore Validation: Reject .aab if no keystore is configured
+    const fileExtLower = path.extname(file.name).toLowerCase().replace(".", "");
+    if (app.platform === "android" && fileExtLower === "aab") {
+      if (!app.android_keystore_path || !app.android_keystore_pass || !app.android_key_alias || !app.android_key_pass) {
+        return NextResponse.json(
+          { error: "Upload rejected: Android App Bundles (.aab) require a keystore to be configured for this app to produce installable APKs." },
+          { status: 400 }
+        );
+      }
+    }
+
     // Process file (AAB to APK conversion if needed)
     const processed = await processUploadedFile(file, appId, app.platform);
     tempProcessedPath = processed.tempProcessedPath;
