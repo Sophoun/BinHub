@@ -1,21 +1,64 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import db from "@/src/lib/db";
-import { versions, user_apps, apps, download_logs, group_apps, user_groups } from "@/src/lib/schema";
+import {
+  versions,
+  user_apps,
+  apps,
+  download_logs,
+  group_apps,
+  user_groups,
+  api_keys,
+  users,
+} from "@/src/lib/schema";
 import { eq, and, or } from "drizzle-orm";
-import { getSession } from "@/src/lib/auth";
+import { getSession, decrypt } from "@/src/lib/auth";
 import path from "path";
 import fs from "fs";
 import { stat } from "fs/promises";
 
 export async function GET(request: Request) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { searchParams } = new URL(request.url);
   const versionIdStr = searchParams.get("versionId");
   const type = searchParams.get("type"); // 'original' or 'processed'
+  const token = searchParams.get("token");
+  const apiKeyParam = searchParams.get("apiKey");
+
+  let session = await getSession();
+
+  // Fallback to token from query param if session cookie is not present
+  if (!session && token) {
+    try {
+      session = (await decrypt(token)) as any;
+    } catch (e) {
+      console.error("Invalid token provided in download URL");
+    }
+  }
+
+  // Fallback to API Key from query param
+  if (!session && apiKeyParam) {
+    const keyResult = await db
+      .select({
+        user: {
+          id: users.id,
+          username: users.username,
+          role: users.role,
+        },
+      })
+      .from(api_keys)
+      .innerJoin(users, eq(api_keys.user_id, users.id))
+      .where(eq(api_keys.key, apiKeyParam))
+      .limit(1)
+      .all();
+
+    if (keyResult[0]) {
+      session = { user: keyResult[0].user };
+    }
+  }
+
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   if (!versionIdStr) {
     return NextResponse.json({ error: "Missing versionId" }, { status: 400 });
@@ -43,7 +86,7 @@ export async function GET(request: Request) {
   // Check if user has access to this app (Direct or via Group)
   if (session.user.role !== "admin") {
     const userId = session.user.id;
-    
+
     // Check direct assignment or group assignment
     const access = await db
       .select({ id: apps.id })
@@ -54,11 +97,8 @@ export async function GET(request: Request) {
       .where(
         and(
           eq(apps.id, version.app_id),
-          or(
-            eq(user_apps.user_id, userId),
-            eq(user_groups.user_id, userId)
-          )
-        )
+          or(eq(user_apps.user_id, userId), eq(user_groups.user_id, userId)),
+        ),
       )
       .limit(1);
 
@@ -73,12 +113,14 @@ export async function GET(request: Request) {
       request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
     const userAgent = request.headers.get("user-agent") || "unknown";
 
-    db.insert(download_logs).values({
-      version_id: versionId,
-      user_id: session.user.id,
-      ip_address: ip,
-      user_agent: userAgent,
-    }).run();
+    db.insert(download_logs)
+      .values({
+        version_id: versionId,
+        user_id: session.user.id,
+        ip_address: ip,
+        user_agent: userAgent,
+      })
+      .run();
   } catch (e) {
     console.error("Failed to log download:", e);
   }
@@ -124,7 +166,9 @@ export async function GET(request: Request) {
   // Use ReadableStream to wrap the Node.js ReadStream for Next.js response
   const stream = new ReadableStream({
     start(controller) {
-      fileStream.on("data", (chunk) => controller.enqueue(new Uint8Array(Buffer.from(chunk))));
+      fileStream.on("data", (chunk) =>
+        controller.enqueue(new Uint8Array(Buffer.from(chunk))),
+      );
       fileStream.on("end", () => controller.close());
       fileStream.on("error", (err) => controller.error(err));
     },

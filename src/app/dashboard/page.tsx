@@ -18,6 +18,7 @@ import {
   getMyAppsAction,
   logoutAction,
   getAppVersionsAction,
+  getDownloadTokenAction,
 } from "@/src/lib/actions";
 import { ThemeToggle } from "@/src/components/theme-toggle";
 import { copyToClipboard } from "@/src/lib/utils";
@@ -50,12 +51,17 @@ export default function UserDashboard() {
   const [selectedAppHistory, setSelectedAppHistory] =
     useState<AppWithVersion | null>(null);
   const [showQRApp, setShowQRApp] = useState<AppWithVersion | null>(null);
+  const [downloadToken, setDownloadToken] = useState<string | null>(null);
   const router = useRouter();
 
   const fetchApps = useCallback(async () => {
     try {
-      const data = await getMyAppsAction();
-      setApps(data);
+      const [appsData, token] = await Promise.all([
+        getMyAppsAction(),
+        getDownloadTokenAction(),
+      ]);
+      setApps(appsData);
+      setDownloadToken(token);
     } catch (e) {
       console.error(e);
     }
@@ -73,13 +79,16 @@ export default function UserDashboard() {
   };
 
   const handleInstall = (platform: "android" | "ios", versionId: number) => {
+    const tokenQuery = downloadToken
+      ? `&token=${encodeURIComponent(downloadToken)}`
+      : "";
     if (platform === "android") {
       // eslint-disable-next-line react-hooks/immutability
-      window.location.href = `/api/download?versionId=${versionId}`;
+      window.location.href = `/api/download?versionId=${versionId}${tokenQuery}`;
     } else {
       const protocol = window.location.protocol;
       const host = window.location.host;
-      const manifestUrl = `${protocol}//${host}/api/manifest?versionId=${versionId}`;
+      const manifestUrl = `${protocol}//${host}/api/manifest?versionId=${versionId}${tokenQuery}`;
       const itmsUrl = `itms-services://?action=download-manifest&url=${encodeURIComponent(manifestUrl)}`;
       // eslint-disable-next-line react-hooks/immutability
       window.location.href = itmsUrl;
@@ -249,7 +258,11 @@ export default function UserDashboard() {
       )}
 
       {showQRApp && (
-        <QRCodeModal app={showQRApp} onClose={() => setShowQRApp(null)} />
+        <QRCodeModal
+          app={showQRApp}
+          onClose={() => setShowQRApp(null)}
+          token={downloadToken}
+        />
       )}
 
       <footer className="border-t py-6 bg-card">
@@ -380,9 +393,11 @@ function VersionHistoryModal({
 function QRCodeModal({
   app,
   onClose,
+  token,
 }: {
   app: AppWithVersion;
   onClose: () => void;
+  token: string | null;
 }) {
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [installUrl, setInstallUrl] = useState<string>("");
@@ -394,11 +409,12 @@ function QRCodeModal({
         const protocol = window.location.protocol;
         const host = window.location.host;
         let url = "";
+        const tokenQuery = token ? `&token=${encodeURIComponent(token)}` : "";
 
         if (app.platform === "android") {
-          url = `${protocol}//${host}/api/download?versionId=${app.version_id}`;
+          url = `${protocol}//${host}/api/download?versionId=${app.version_id}${tokenQuery}`;
         } else {
-          const manifestUrl = `${protocol}//${host}/api/manifest?versionId=${app.version_id}`;
+          const manifestUrl = `${protocol}//${host}/api/manifest?versionId=${app.version_id}${tokenQuery}`;
           url = `itms-services://?action=download-manifest&url=${encodeURIComponent(manifestUrl)}`;
         }
 
@@ -420,7 +436,7 @@ function QRCodeModal({
     if (app.version_id) {
       generateQR();
     }
-  }, [app]);
+  }, [app, token]);
 
   const handleCopy = async () => {
     const success = await copyToClipboard(installUrl);

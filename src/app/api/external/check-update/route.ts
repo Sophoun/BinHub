@@ -99,10 +99,10 @@ export async function GET(request: Request) {
     const baseUrl = `${protocol}://${host}`;
 
     let installUrl = "";
-    const directDownloadUrl = `${baseUrl}/api/download?versionId=${latest.id}`;
+    const directDownloadUrl = `${baseUrl}/api/download?versionId=${latest.id}&apiKey=${encodeURIComponent(apiKey)}`;
 
     if (app.platform === "ios") {
-      const manifestUrl = `${baseUrl}/api/manifest?versionId=${latest.id}`;
+      const manifestUrl = `${baseUrl}/api/manifest?versionId=${latest.id}&apiKey=${encodeURIComponent(apiKey)}`;
       installUrl = `itms-services://?action=download-manifest&url=${encodeURIComponent(manifestUrl)}`;
     } else {
       installUrl = directDownloadUrl;

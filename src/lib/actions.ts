@@ -2,6 +2,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import db from "./db";
 import {
   users,
@@ -70,6 +71,11 @@ export async function loginAction(prevState: any, formData: FormData) {
 export async function logoutAction() {
   await logout();
   revalidatePath("/");
+}
+
+export async function getDownloadTokenAction() {
+  const cookieStore = await cookies();
+  return cookieStore.get("session")?.value || null;
 }
 
 // User Actions
